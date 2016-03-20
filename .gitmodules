@@ -1,3 +1,6 @@
 [submodule "nanpy-firmware"]
 	path = nanpy-firmware
 	url = git@github.com:nanpy/nanpy-firmware.git
+[submodule "arduino-pong"]
+	path = arduino-pong
+	url = git@github.com:ponty/arduino-pong.git
