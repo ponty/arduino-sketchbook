@@ -1,3 +1,6 @@
+.*
+!.git*
+
 # Compiled Object files
 *.slo
 *.lo
