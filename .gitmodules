@@ -4,3 +4,9 @@
 [submodule "arduino-pong"]
 	path = arduino-pong
 	url = git@github.com:ponty/arduino-pong.git
+[submodule "libraries/FreqCount"]
+	path = libraries/FreqCount
+	url = https://github.com/PaulStoffregen/FreqCount.git
+[submodule "libraries/FreqMeasure"]
+	path = libraries/FreqMeasure
+	url = https://github.com/PaulStoffregen/FreqMeasure.git
