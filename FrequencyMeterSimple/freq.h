@@ -1,5 +1,7 @@
-// common interface for frequency counter libraries
+#pragma once
 
+// common interface for frequency counter libraries
+#if 0
 
 #ifdef FreqMeasure2_h
 void freq_setup()
@@ -117,5 +119,8 @@ float read_freq(uint16_t gate_time)
     return FreqCount.read();            // read result
 
 }
+
+#endif
+
 
 #endif

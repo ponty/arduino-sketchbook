@@ -7,53 +7,48 @@
 
 // http://www.pjrc.com/teensy/td_libs_FreqCount.html
 #include <FreqCount.h>
-// test: 62500
+#include <FreqMeasure.h>
 
-//#include <FreqMeasure.h>
+//#include "freq.h"
 
-#include "freq.h"
-
-// initialize the library with the numbers of the interface pins
-//LiquidCrystal lcd(  //
-//        LCD_RS,  // RS
-//        LCD_EN,  // EN
-//        LCD_D4,   // D4
-//        LCD_D5,   // D5
-//        LCD_D6,   // D6
-//        LCD_D7    // D7
-//        );
 LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, NEGATIVE);  // Set the LCD I2C address
 
 const bool PWM_TEST = false;
+
+
+void freq_setup()
+{
+    FreqCount.begin(1000);
+}
+
+float read_freq(uint16_t gate_time)
+{
+    FreqCount.begin(gate_time);
+    while (!FreqCount.available())         // wait until counter ready
+    {
+    }
+    uint32_t f = FreqCount.read();            // read result
+    FreqCount.end();
+    return f;            // read result
+
+}
+
 void setup()
 {
-//    Serial.begin(9600);
     if (PWM_TEST)
     {
         pinMode(5, OUTPUT);
         analogWrite(5, 128);
 //    setPwmFrequency(5, 1);
     }
-    // set up the LCD's number of columns and rows: 
+
     lcd.begin(16, 2);
-    // Print a message to the LCD.
-//    lcd.print("hello, world!");
 
     freq_setup();
+//    FreqMeasure.begin();
 }
 float frq_old = 0;
 int mode = 2;
-//uint32_t read_period()
-//{
-//    return pulseIn(5, LOW) + pulseIn(5, HIGH);
-////    return pulseIn2(5, LOW);
-////    uint32_t pp=0;
-////    while (!pp)         // wait until counter ready
-////    {
-////        pp=FreqPeriod::getPeriod();
-////    }
-////    return 16000000.0 / pp;
-//}
 
 void display_freq(float frq)
 {
@@ -73,10 +68,9 @@ void display_amp(float amp)
 {
     lcd.setCursor(0, 1);
     lcd.print(amp,3);
-//    lcd.print(" ");
-//    lcd.print(5.0 / 1024 * amp);
     lcd.print(" V    ");
 }
+
 int xi = 0;
 void pwm_test()
 {
@@ -101,44 +95,98 @@ void pwm_test()
     
 }
 
+//uint16_t read_peak(float frq)
+//{
+//    uint16_t peak = 0;
+//    uint16_t n = 0;
+//    if (frq > 10000)
+//    {
+//        n = 1;
+//    }
+//    else if (frq > 1000)
+//    {
+//        n = 10;
+//    }
+//    else if (frq > 100)
+//    {
+//        n = 100;
+//    }
+//    else if (frq > 10)
+//    {
+//        n = 1000;
+//    }
+//    else if (frq > 1)
+//    {
+//        n = 10000;
+//    }
+//    else
+//    {
+//        n = 10000;
+//    }
+//
+//    for (int i = 0; i < n; i++)
+//    {
+//        uint16_t value = analogRead(PIN_AMP);
+//        if (value > peak)
+//        {
+//            peak = value;
+//        }
+//    }
+//	return peak;
+//}
+
 uint16_t read_peak(float frq)
 {
-    uint16_t peak = 0;
-    uint16_t n = 0;
-    if (frq > 10000)
-    {
-        n = 1;
-    }
-    else if (frq > 1000)
-    {
-        n = 10;
-    }
-    else if (frq > 100)
-    {
-        n = 100;
-    }
-    else if (frq > 10)
-    {
-        n = 1000;
-    }
-    else if (frq > 1)
-    {
-        n = 10000;
-    }
-    else
-    {
-        n = 10000;
-    }
+	// discharge capacitor with ground
+    pinMode(A0+PIN_AMP, OUTPUT);
+    delayMicroseconds(100); 
+    pinMode(A0+PIN_AMP, INPUT);
 
-    for (int i = 0; i < n; i++)
-    {
-        uint16_t value = analogRead(PIN_AMP);
-        if (value > peak)
-        {
-            peak = value;
-        }
-    }
+    // wait before read
+    delayMicroseconds(100); 
+    
+	uint16_t peak = analogRead(PIN_AMP);
 	return peak;
+}
+
+
+#define TIMEOUT	2000
+float read_freq_period()
+{
+	FreqMeasure.begin();
+    uint32_t pp=0;
+    int32_t i=0;
+    while (!FreqMeasure.available())         // wait until counter ready
+    {
+        i++;
+        if (i>TIMEOUT)
+        {
+        	FreqMeasure.end();
+            return 0;
+        }
+        delayMicroseconds(1000); // 1 ms
+    }
+    uint8_t avail = FreqMeasure.available();
+    for(i=0;i<avail;i++)
+    	pp=FreqMeasure.read();
+
+    // clear buffer
+//    FreqMeasure.read();
+//    FreqMeasure.read();
+//    FreqMeasure.read();
+//    FreqMeasure.read();
+//    FreqMeasure.read();
+//    FreqMeasure.read();
+//    FreqMeasure.read();
+//    FreqMeasure.read();
+//    FreqMeasure.read();
+//    FreqMeasure.read();
+//    FreqMeasure.read();
+//    FreqMeasure.read();
+
+//    return 16000000.0 / pp*1000;
+	FreqMeasure.end();
+    return FreqMeasure.countToFrequency(pp)*1000;
 }
 
 void loop()
@@ -146,29 +194,30 @@ void loop()
 	pwm_test();
 	
     uint16_t gate_time;
-    if (read_freq(10) >= 10)
+    float frq = 0;
+    if (read_freq(10) >= 10) // 1kHz
     {
         gate_time = 100;
+        float frq_raw = read_freq(gate_time);
+        static float frq_raw_old = 0;
+        if (abs(frq_raw - frq_raw_old) == 1)
+        {
+            // avoid flickering
+            frq_raw = frq_raw_old;
+        }
+        frq_raw_old = frq_raw;
+        frq = frq_raw;
+        if (gate_time == 100)
+        {
+            frq = 10 * frq;
+        }
     }
     else
     {
-        gate_time = 1000;
+        frq = read_freq_period();
     }
-    float frq_raw = read_freq(gate_time);
-    static float frq_raw_old = 0;
-    if (abs(frq_raw - frq_raw_old) == 1)
-    {
-        // avoid flickering
-        frq_raw = frq_raw_old;
-    }
-    frq_raw_old = frq_raw;
 
-//    Serial.println(frq);
-    float frq = frq_raw;
-    if (gate_time == 100)
-    {
-        frq = 10 * frq;
-    }
+
 //    if (frq != frq_old)
     {
 
