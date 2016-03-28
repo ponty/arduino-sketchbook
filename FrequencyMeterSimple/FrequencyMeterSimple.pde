@@ -35,6 +35,8 @@ float read_freq(uint16_t gate_time)
 
 void setup()
 {
+    Serial.begin(9600);
+
     if (PWM_TEST)
     {
         pinMode(5, OUTPUT);
@@ -56,12 +58,14 @@ void display_freq(float frq)
     if (frq > 9955)
     {
         lcd.print(frq/1000, 2);
-        lcd.print(" kHz   ");
+        lcd.print(" kHz     ");
     }
     else
     {
-        lcd.print(frq, 0);
-        lcd.print(" Hz     ");
+        Serial.print("frq:");
+        Serial.println(frq);
+        lcd.print(frq, 2);
+        lcd.print(" Hz      ");
     }
 }
 void display_amp(float amp)
@@ -138,25 +142,25 @@ void pwm_test()
 uint16_t read_peak(float frq)
 {
 	// discharge capacitor with ground
-    pinMode(A0+PIN_AMP, OUTPUT);
-    delayMicroseconds(100); 
-    pinMode(A0+PIN_AMP, INPUT);
+//    pinMode(A0+PIN_AMP, OUTPUT);
+//    delayMicroseconds(100); 
+//    pinMode(A0+PIN_AMP, INPUT);
 
     // wait before read
-    delayMicroseconds(100); 
+//    delayMicroseconds(100); 
     
 	uint16_t peak = analogRead(PIN_AMP);
 	return peak;
 }
 
 
-#define TIMEOUT	2000
+#define TIMEOUT	12000
 float read_freq_period()
 {
 	FreqMeasure.begin();
     uint32_t pp=0;
     int32_t i=0;
-    while (!FreqMeasure.available())         // wait until counter ready
+    while (FreqMeasure.available()<2)         // wait until counter ready
     {
         i++;
         if (i>TIMEOUT)
@@ -167,6 +171,8 @@ float read_freq_period()
         delayMicroseconds(1000); // 1 ms
     }
     uint8_t avail = FreqMeasure.available();
+//    Serial.print("available:");
+//    Serial.println(avail);
     for(i=0;i<avail;i++)
     	pp=FreqMeasure.read();
 
@@ -186,7 +192,7 @@ float read_freq_period()
 
 //    return 16000000.0 / pp*1000;
 	FreqMeasure.end();
-    return FreqMeasure.countToFrequency(pp)*1000;
+    return FreqMeasure.countToFrequency(pp);
 }
 
 void loop()
@@ -195,7 +201,7 @@ void loop()
 	
     uint16_t gate_time;
     float frq = 0;
-    if (read_freq(10) >= 10) // 1kHz
+    if (read_freq(10) >= 100) // 10kHz
     {
         gate_time = 100;
         float frq_raw = read_freq(gate_time);
@@ -215,6 +221,8 @@ void loop()
     else
     {
         frq = read_freq_period();
+//        Serial.print("frq:");
+//        Serial.println(frq);
     }
 
 
