@@ -1,8 +1,3 @@
-const int LCD_RS = 6;
-const int LCD_EN = 7;
-const int LCD_D4 = 0;
-const int LCD_D5 = 1;
-const int LCD_D6 = 2;
-const int LCD_D7 = 3;
-
 const int PIN_AMP = 1;
+
+#define LCD_I2C_CONFIG     0x27, 2, 1, 0, 4, 5, 6, 7, 3, NEGATIVE
