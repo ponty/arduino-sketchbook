@@ -1,6 +1,9 @@
-/*
- Copyright (C) 2011 J. Coliz <maniacbug@ymail.com>
+#include <WProgram.h>
+#line 1 "scanner.pde"
 
+/*
+ Copyright (C) 2011 James Coliz, Jr. <maniacbug@ymail.com>
+ 
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
  version 2 as published by the Free Software Foundation.
@@ -26,16 +29,16 @@
 // Hardware configuration
 //
 
-// Set up nRF24L01 radio on SPI bus plus pins 7 & 8
+// Set up nRF24L01 radio on SPI bus plus pins 8 & 9
 
-RF24 radio(7,8);
+RF24 radio(8,9);
 
 //
 // Channel info
 //
 
-const uint8_t num_channels = 126;
-uint8_t values[num_channels];
+const short num_channels = 128;
+short values[num_channels];
 
 //
 // Setup
@@ -46,15 +49,15 @@ void setup(void)
   //
   // Print preamble
   //
-
+  
   Serial.begin(115200);
   printf_begin();
-  Serial.println(F("\n\rRF24/examples/scanner/"));
-
+  printf("\n\rRF24/examples/scanner/\n\r");
+  
   //
   // Setup and configure rf radio
   //
-
+  
   radio.begin();
   radio.setAutoAck(false);
 
@@ -62,33 +65,33 @@ void setup(void)
   radio.startListening();
   radio.stopListening();
 
-  // Print out header, high then low digit
+  // Print out header, high then low digit 
   int i = 0;
   while ( i < num_channels )
   {
     printf("%x",i>>4);
     ++i;
   }
-  Serial.println();
+  printf("\n\r");
   i = 0;
   while ( i < num_channels )
   {
     printf("%x",i&0xf);
     ++i;
   }
-  Serial.println();
+  printf("\n\r");
 }
 
 //
 // Loop
 //
 
-const int num_reps = 100;
+const short num_reps = 100;
 
 void loop(void)
 {
-  // Clear measurement values
-  memset(values,0,sizeof(values));
+  // Clear measurement values 
+  memset(values,0,num_channels);
 
   // Scan all channels num_reps times
   int rep_counter = num_reps;
@@ -102,25 +105,24 @@ void loop(void)
 
       // Listen for a little
       radio.startListening();
-      delayMicroseconds(225);
-      
+      delayMicroseconds(128);
+      radio.stopListening();
 
       // Did we get a carrier?
-      if ( radio.testCarrier() ){
-        ++values[i];
-      }
-      radio.stopListening();
+      if ( radio.testCarrier() )
+	++values[i];
     }
   }
 
-  // Print out channel measurements, clamped to a single hex digit
+  // Print out channel measurements, clamped to a single hex digit 
   int i = 0;
   while ( i < num_channels )
   {
     printf("%x",min(0xf,values[i]&0xf));
     ++i;
   }
-  Serial.println();
+  printf("\n\r");
 }
+
 
 // vim:ai:cin:sts=2 sw=2 ft=cpp
