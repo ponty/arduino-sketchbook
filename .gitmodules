@@ -10,3 +10,6 @@
 [submodule "libraries/FreqMeasure"]
 	path = libraries/FreqMeasure
 	url = https://github.com/PaulStoffregen/FreqMeasure.git
+[submodule "arduino-rtttl-player"]
+	path = arduino-rtttl-player
+	url = git@github.com:ponty/arduino-rtttl-player.git
