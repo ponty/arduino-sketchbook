@@ -13,3 +13,12 @@
 [submodule "arduino-rtttl-player"]
 	path = arduino-rtttl-player
 	url = git@github.com:ponty/arduino-rtttl-player.git
+[submodule "libraries/OneWire"]
+	path = libraries/OneWire
+	url = https://github.com/PaulStoffregen/OneWire.git
+[submodule "libraries/DallasTemperature"]
+	path = libraries/DallasTemperature
+	url = https://github.com/milesburton/Arduino-Temperature-Control-Library.git
+[submodule "libraries/Adafruit_SleepyDog"]
+	path = libraries/Adafruit_SleepyDog
+	url = https://github.com/adafruit/Adafruit_SleepyDog.git
