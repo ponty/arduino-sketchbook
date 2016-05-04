@@ -22,3 +22,6 @@
 [submodule "libraries/Adafruit_SleepyDog"]
 	path = libraries/Adafruit_SleepyDog
 	url = https://github.com/adafruit/Adafruit_SleepyDog.git
+[submodule "libraries/Seeeduino_GPRS"]
+	path = libraries/Seeeduino_GPRS
+	url = https://github.com/Seeed-Studio/Seeeduino_GPRS.git
