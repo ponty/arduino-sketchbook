@@ -5,6 +5,8 @@
 #include "DigiKeyboard.h"
 #endif
 
+int g_pushed = 0;
+
 void mydelay(int ms)
 {
 #ifdef ARDUINO_AVR_DIGISPARK
@@ -48,7 +50,7 @@ void setup()
     pinMode(PIN_KEY3, INPUT);
 
 }
-int g_pushed = 0;
+
 void loop()
 {
     int b1 = digitalRead(PIN_KEY1);
