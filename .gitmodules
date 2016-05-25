@@ -7,9 +7,6 @@
 [submodule "arduino-rtttl-player"]
 	path = arduino-rtttl-player
 	url = git@github.com:ponty/arduino-rtttl-player.git
-[submodule "libraries/Seeeduino_GPRS"]
-	path = libraries/Seeeduino_GPRS
-	url = https://github.com/Seeed-Studio/Seeeduino_GPRS.git
 [submodule "i2cdevlib"]
 	path = i2cdevlib
 	url = https://github.com/jrowberg/i2cdevlib.git
