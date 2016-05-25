@@ -13,3 +13,6 @@
 [submodule "i2cdevlib"]
 	path = i2cdevlib
 	url = https://github.com/jrowberg/i2cdevlib.git
+[submodule "hardware/Arduino_STM32"]
+	path = hardware/Arduino_STM32
+	url = https://github.com/rogerclarkmelbourne/Arduino_STM32.git
