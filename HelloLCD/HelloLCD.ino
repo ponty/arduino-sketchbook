@@ -9,17 +9,6 @@
  This sketch prints "Hello World!" to the LCD
  and shows the time.
  
-  The circuit:
- * LCD RS pin to digital pin 12
- * LCD Enable pin to digital pin 11
- * LCD D4 pin to digital pin 5
- * LCD D5 pin to digital pin 4
- * LCD D6 pin to digital pin 3
- * LCD D7 pin to digital pin 2
- * LCD R/W pin to ground
- * 10K resistor:
- * ends to +5V and ground
- * wiper to LCD VO pin (pin 3)
  
  Library originally added 18 Apr 2008
  by David A. Mellis
@@ -39,13 +28,21 @@
 #include <LiquidCrystal.h>
 
 // initialize the library with the numbers of the interface pins
-LiquidCrystal lcd(6,  // RS
-                  7,  // EN
-                  0,   // D4
-                  1,   // D5
-                  2,   // D6
-                  3    // D7
+LiquidCrystal lcd(
+                  2,  // RS
+                  3,  // EN
+                  
+                  9,   // D4
+                  8,   // D5
+                  7,   // D6
+                  6    // D7
                   );
+/*
+ * LCD R/W pin to ground
+ * 10K resistor:
+ * ends to +5V and ground
+ * wiper to LCD VO pin (pin 3)
+ */
 
 void setup() {
   // set up the LCD's number of columns and rows: 
