@@ -13,3 +13,6 @@
 [submodule "hardware/Arduino_STM32"]
 	path = hardware/Arduino_STM32
 	url = https://github.com/rogerclarkmelbourne/Arduino_STM32.git
+[submodule "libraries/MemoryFree"]
+	path = libraries/MemoryFree
+	url = https://github.com/McNeight/MemoryFree.git
