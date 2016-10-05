@@ -80,7 +80,7 @@ extern void loop(void);
 
 /*-----------------------------------------------------------*/
 
-void initVariant(void) __attribute__ ((flatten, OS_main));
+void initVariant(void) __attribute__ ((OS_main));
 void initVariant(void)
 {
 #if defined(USBCON)
@@ -180,7 +180,7 @@ void vApplicationMallocFailedHook( void )
 /*-----------------------------------------------------------*/
 
 
-#if ( configCHECK_FOR_STACK_OVERFLOW == 1 )
+#if ( configCHECK_FOR_STACK_OVERFLOW >= 1 )
 /*---------------------------------------------------------------------------*\
 Usage:
    called by task system when a stack overflow is noticed
@@ -239,5 +239,5 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask __attribute__((unused)), 
 	}
 }
 
-#endif /* configCHECK_FOR_STACK_OVERFLOW == 1 */
+#endif /* configCHECK_FOR_STACK_OVERFLOW >= 1 */
 /*-----------------------------------------------------------*/
