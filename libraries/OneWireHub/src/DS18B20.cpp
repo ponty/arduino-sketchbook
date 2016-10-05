@@ -13,17 +13,19 @@ DS18B20::DS18B20(uint8_t ID1, uint8_t ID2, uint8_t ID3, uint8_t ID4, uint8_t ID5
     scratchpad[6] = 0x00; // Reset
     scratchpad[7] = 0x10; // 0x10
     updateCRC(); // update scratchpad[8]
+
+    ds18s20_mode = (ID1 == 0x10); // different tempRegister
 }
 
 void DS18B20::updateCRC()
 {
     scratchpad[8] = crc8(scratchpad, 8);
-}
+};
 
 bool DS18B20::duty(OneWireHub *hub)
 {
     const uint8_t cmd = hub->recv();
-    //if (hub->getError())  return false;
+    if (hub->getError())  return false;
 
     switch (cmd)
     {
@@ -34,12 +36,12 @@ bool DS18B20::duty(OneWireHub *hub)
         case 0x4E: // WRITE SCRATCHPAD
             // write 3 byte of data to scratchpad[1:3]
             hub->recv(&scratchpad[2], 3);
+            if (hub->getError())  return false;
             updateCRC();
             break;
 
         case 0xBE: // READ SCRATCHPAD
             hub->send(scratchpad, 9);
-            if (hub->getError()) return false;
             break;
 
         case 0x48: // COPY SCRATCHPAD to EEPROM
@@ -51,7 +53,7 @@ bool DS18B20::duty(OneWireHub *hub)
             break;
 
         case 0xB4: // READ POWER SUPPLY
-            //hub->sendBit(1); // 1: say i am external powered, 0: uses parasite power, // 1 is passive, so ommit it ...
+            //hub->sendBit(1); // 1: say i am external powered, 0: uses parasite power, // 1 is passive, so omit it ...
             break;
 
             // READ TIME SLOTS, respond with 1 if conversion is done, not usable with parasite power
@@ -66,14 +68,12 @@ bool DS18B20::duty(OneWireHub *hub)
             // TODO: Alarm search command, respond if flag is set
             break;
 
-
         default:
             hub->raiseSlaveError(cmd);
-            break;
-    }
+    };
 
-    return true;
-}
+    return !(hub->getError());
+};
 
 
 void DS18B20::setTemp(const float temperature_degC)
@@ -86,23 +86,40 @@ void DS18B20::setTemp(const int16_t temperature_degC) // could be int8_t, [-55;+
     setTempRaw(temperature_degC * static_cast<int8_t>(16));
 };
 
-// use always 12bit mode! also 9,10,11,12 bit possible bitPosition seems to stay the same
+
 void DS18B20::setTempRaw(const int16_t value_raw)
 {
     int16_t value = value_raw;
 
-    if (value > 0)
+    if (ds18s20_mode)
     {
-        value &= 0x0FFF;
+        value /= 8;
+        if (value > 0)
+        {
+            value &= 0x00FF;
+        }
+        else
+        {
+            value = -value;
+            value |= 0xFF00;
+        };
     }
     else
     {
-        value = -value;
-        value |= 0xF000;
-    }
+        // normal 18b20
+        // uses always 12bit mode! also 9,10,11,12 bit possible bitPosition seems to stay the same
+        if (value > 0)
+        {
+            value &= 0x0FFF;
+        } else
+        {
+            value = -value;
+            value |= 0xF000;
+        };
+    };
 
-    scratchpad[0] = uint8_t(value);
-    scratchpad[1] = uint8_t(value >> 8);
+    scratchpad[0] = reinterpret_cast<uint8_t *>(&value)[0];
+    scratchpad[1] = reinterpret_cast<uint8_t *>(&value)[1];
     // TODO: if alarms implemented - compare TH,TL with (value>>4 & 0xFF) (bit 11to4)
     // if out of bounds >=TH, <=TL trigger flag
 

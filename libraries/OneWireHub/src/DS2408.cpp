@@ -15,39 +15,44 @@ DS2408::DS2408(uint8_t ID1, uint8_t ID2, uint8_t ID3, uint8_t ID4, uint8_t ID5, 
     memory.bytes[10] = 0xFF; // D7
     memory.bytes[11] = 0;  // CRCL
     memory.bytes[12] = 0;  // CRCH
-}
+};
 
 void DS2408::updateCRC()
 {
     //(reinterpret_cast<sDS2408 *>(memory))->CRC = ~crc16(memory, 11);
-}
+};
 
 bool DS2408::duty(OneWireHub *hub)
 {
     memory.field.crc = 0;
     uint8_t cmd = hub->recvAndCRC16(memory.field.crc);
+    if (hub->getError())  return false;
 
     switch (cmd)
     {
         // Read PIO Registers
         case 0xF0:
             hub->recvAndCRC16(memory.field.crc);
+            if (hub->getError())  return false;
             hub->recvAndCRC16(memory.field.crc);
+            if (hub->getError())  return false;
 
             for (uint8_t count = 3; count < 11; ++count)
             {
                 memory.field.crc = hub->sendAndCRC16(memory.bytes[count], memory.field.crc);
+                if (hub->getError())  return false; // directly quit when master stops, omit following data
             }
             memory.field.crc = ~memory.field.crc; // most important step, easy to miss....
             hub->send(memory.bytes[11]);
+            if (hub->getError())  return false;
             hub->send(memory.bytes[12]);
+            if (hub->getError())  return false;
 
             break;
 
         default:
             hub->raiseSlaveError(cmd);
-            return false;
-    }
+    };
 
-    return true;
-}
+    return !(hub->getError());
+};

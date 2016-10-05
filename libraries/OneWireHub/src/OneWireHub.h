@@ -1,4 +1,3 @@
-
 #ifndef ONEWIRE_HUB_H
 #define ONEWIRE_HUB_H
 
@@ -7,11 +6,20 @@
 #endif
 #include "platform.h" // code for compatibility
 
-#define USE_SERIAL_DEBUG 0 // give debug messages when printError() is called
-// INFO: had to go with a define because some compilers use constexpr as simple const --> massive problems
+/////////////////////////////////////////////////////
+// CONFIG ///////////////////////////////////////////
+/////////////////////////////////////////////////////
 
+// INFO: had to go with a define because some compilers use constexpr as simple const --> massive problems
 #define HUB_SLAVE_LIMIT 8 // set the limit of the hub HERE
 
+#define USE_SERIAL_DEBUG    0 // give debug messages when printError() is called
+#define USE_GPIO_DEBUG      0
+#define GPIO_DEBUG_PIN      4 // digital pin
+
+/////////////////////////////////////////////////////
+// END OF CONFIG ////////////////////////////////////
+/////////////////////////////////////////////////////
 
 #ifndef HUB_SLAVE_LIMIT
 #error "Slavelimit not defined (why?)"
@@ -27,7 +35,7 @@ using mask_t = uint8_t;
 #error "Slavelimit is set to zero (why?)"
 #endif
 
-using time_t = uint32_t;
+using timeOW_t = uint32_t;
 
 enum class Error : uint8_t {
     NO_ERROR                   = 0,
@@ -44,6 +52,7 @@ enum class Error : uint8_t {
     INCORRECT_SLAVE_USAGE      = 11,
     TRIED_INCORRECT_WRITE      = 12,
     FIRST_TIMESLOT_TIMEOUT     = 13,
+    FIRST_BIT_OF_BYTE_TIMEOUT  = 14
 };
 
 
@@ -68,7 +77,7 @@ private:
     static constexpr uint16_t ONEWIRE_TIME_PRESENCE_SAMPLE_MIN  =   20; // probe measures 40us
     static constexpr uint16_t ONEWIRE_TIME_PRESENCE_LOW_STD     =  160; // was 125
     static constexpr uint16_t ONEWIRE_TIME_PRESENCE_LOW_MAX     =  480; // should be 280, was 480 !!!! why
-    static constexpr uint16_t ONEWIRE_TIME_PRESENCE_HIGH_MAX    =20000; //
+    static constexpr uint16_t ONEWIRE_TIME_PRESENCE_HIGH_MAX    =20000; // TODO: length of high-side not really relevant, so we should switch to a fn that detects the length of the most recent low-phase
 
     static constexpr uint16_t ONEWIRE_TIME_SLOT_MAX             =  135; // should be 120, was ~1050
 
@@ -78,27 +87,28 @@ private:
     static constexpr uint16_t ONEWIRE_TIME_WRITE_ZERO_LOW_STD   =   35; //
     // TODO: use #define to switch to overdrive mode
 
-    time_t LOOPS_BUS_CHANGE_MAX;
-    time_t LOOPS_RESET_MIN;
-    time_t LOOPS_RESET_MAX;
-    time_t LOOPS_PRESENCE_SAMPLE_MIN;
-    time_t LOOPS_PRESENCE_LOW_STD;
-    time_t LOOPS_PRESENCE_LOW_MAX;
-    time_t LOOPS_PRESENCE_HIGH_MAX;
-    time_t LOOPS_SLOT_MAX;
-    time_t LOOPS_READ_ONE_LOW_MAX;
-    time_t LOOPS_READ_STD;
-    time_t LOOPS_WRITE_ZERO_LOW_STD;
+    timeOW_t LOOPS_BUS_CHANGE_MAX;
+    timeOW_t LOOPS_RESET_MIN;
+    timeOW_t LOOPS_RESET_MAX;
+    timeOW_t LOOPS_PRESENCE_SAMPLE_MIN;
+    timeOW_t LOOPS_PRESENCE_LOW_STD;
+    timeOW_t LOOPS_PRESENCE_LOW_MAX;
+    timeOW_t LOOPS_PRESENCE_HIGH_MAX;
+    timeOW_t LOOPS_SLOT_MAX;
+    timeOW_t LOOPS_READ_ONE_LOW_MAX;
+    timeOW_t LOOPS_READ_STD;
+    timeOW_t LOOPS_WRITE_ZERO_LOW_STD;
 
 
     Error   _error;
     uint8_t _error_cmd;
 
-    uint8_t           pin_bitMask;
-    volatile uint8_t *pin_baseReg;
+    io_reg_t          pin_bitMask;
+    volatile io_reg_t *pin_baseReg;
     uint8_t           extend_timeslot_detection;
     uint8_t           skip_reset_detection;
 
+    bool              overdrive_mode;
 
     uint8_t      slave_count;
     OneWireItem *slave_list[ONEWIRESLAVE_LIMIT];  // private slave-list (use attach/detach)
@@ -142,6 +152,8 @@ public:
     bool    detach(const OneWireItem &sensor);
     bool    detach(const uint8_t slave_number);
 
+    uint8_t getIndexOfNextSensorInList(const uint8_t index_start = 0);
+
     bool poll(void);
 
     [[deprecated("use the non-blocking poll() instead of waitForRequest()")]]
@@ -165,7 +177,7 @@ public:
     void printError(void);
     bool getError(void);
     void raiseSlaveError(const uint8_t cmd = 0);
-
+    Error clearError(void);
 };
 
 

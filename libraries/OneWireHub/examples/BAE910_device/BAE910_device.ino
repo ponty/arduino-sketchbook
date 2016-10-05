@@ -1,19 +1,19 @@
 /*
- *    Example-Code that emulates a DS2438 Smart Battery Monitor
+ *    Example-Code that emulates a BAE910
+ *    ( http://www.brain4home.eu/node/4 )
  *
- *    Tested with:
- *    - https://github.com/PaulStoffregen/OneWire
- *    - https://github.com/jbechter/arduino-onewire-DS2438  --> still untested
  */
 
 #include "OneWireHub.h"
-#include "DS2438.h"  // Smart Battery Monitor
+#include "BAE910.h"  // 3rd party OneWire slave device, family code 0xFC
 
 const uint8_t led_PIN       = 13;         // the number of the LED pin
 const uint8_t OneWire_PIN   = 8;
+const uint8_t Analog_PIN    = 0;
 
 auto hub    = OneWireHub(OneWire_PIN);
-auto ds2438 = DS2438( 0x26, 0x0D, 0x02, 0x04, 0x03, 0x08, 0x0A );    //      - Smart Battery Monitor
+auto bae910 = BAE910(BAE910::family_code, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06);
+
 
 bool blinking()
 {
@@ -32,15 +32,16 @@ bool blinking()
     return 0;
 }
 
+
 void setup()
 {
     Serial.begin(115200);
-    Serial.println("OneWire-Hub DS2438 Smart Battery Monitor");
+    Serial.println("OneWire-Hub BAE910 emulation ADC example");
 
     pinMode(led_PIN, OUTPUT);
 
     // Setup OneWire
-    hub.attach(ds2438);
+    hub.attach(bae910);
 
     Serial.println("config done");
 }
@@ -49,26 +50,16 @@ void loop()
 {
     // following function must be called periodically
     hub.poll();
+    // this part is just for debugging (USE_SERIAL_DEBUG in OneWire.h must be enabled for output)
+    if (hub.getError()) hub.printError();
+
+    // write something into BAEs rtc
+    bae910.memory.field.rtc = millis() / 1000;
 
     // Blink triggers the state-change
     if (blinking())
     {
-        static float    temp      = 10.0;
-        static uint16_t volt_10mV = 10;
-        static uint16_t current   = 10;
-
-        if ((temp += 0.2) > 30.0) temp = 10.0;
-        if ((volt_10mV++) > 200 ) volt_10mV = 10;
-        if ((current++)   > 200 ) current = 10;
-
-        ds2438.setTemp(temp);
-        ds2438.setVolt(volt_10mV);
-        ds2438.setCurr(current);
-
-        //Serial.println(temp);
+        // read ADC and write into BAE register
+        bae910.memory.field.adc10 = analogRead(Analog_PIN);
     }
 }
-
-/*
- *   A1.6.7 compiles to 7592 // 374
- */

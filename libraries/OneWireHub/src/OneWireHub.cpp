@@ -7,8 +7,8 @@ OneWireHub::OneWireHub(uint8_t pin)
 {
     _error = Error::NO_ERROR;
 
- 	pin_bitMask = PIN_TO_BITMASK(pin);
-	pin_baseReg = PIN_TO_BASEREG(pin);
+    pin_bitMask = PIN_TO_BITMASK(pin);
+    pin_baseReg = PIN_TO_BASEREG(pin);
 
     extend_timeslot_detection = 0;
 
@@ -19,9 +19,13 @@ OneWireHub::OneWireHub(uint8_t pin)
         slave_list[i] = nullptr;
 
     // prepare pin
-    volatile uint8_t *reg asm("r30") = pin_baseReg;
-    DIRECT_MODE_INPUT(reg, pin_bitMask);
+    DIRECT_MODE_INPUT(pin_baseReg, pin_bitMask);
 
+    // debug:
+#if USE_GPIO_DEBUG
+    pinMode(GPIO_DEBUG_PIN,OUTPUT);
+    digitalWrite(GPIO_DEBUG_PIN,LOW);
+#endif
 };
 
 
@@ -99,12 +103,23 @@ uint8_t OneWireHub::getNrOfFirstBitSet(const mask_t mask)
     return 0;
 }
 
+// return next not empty element in slave-list
+uint8_t OneWireHub::getIndexOfNextSensorInList(const uint8_t index_start = 0)
+{
+    for (uint8_t i = index_start; i < ONEWIRE_TREE_SIZE; ++i)
+    {
+        if (slave_list[i] != nullptr)  return i;
+    }
+    return 0;
+}
+
 // gone through the address, store this result
 uint8_t OneWireHub::getNrOfFirstFreeIDTreeElement(void)
 {
     for (uint8_t i = 0; i < ONEWIRE_TREE_SIZE; ++i)
-        if (idTree[i].id_position == 255)
-            return i;
+    {
+        if (idTree[i].id_position == 255) return i;
+    }
     return 0;
 };
 
@@ -122,7 +137,9 @@ uint8_t OneWireHub::buildIDTree(void)
     }
 
     for (uint8_t i = 0; i< ONEWIRE_TREE_SIZE; ++i)
-        idTree[i].id_position    = 255;
+    {
+        idTree[i].id_position = 255;
+    }
 
     // begin with root-element
     buildIDTree(0, mask_slaves); // goto branch
@@ -233,11 +250,7 @@ bool OneWireHub::poll(void)
 
 bool OneWireHub::checkReset(uint16_t timeout_us) // there is a specific high-time needed before a reset may occur -->  >120us
 {
-    volatile uint8_t *reg asm("r30") = pin_baseReg;
-
-    noInterrupts();
-    DIRECT_MODE_INPUT(reg, pin_bitMask);
-    interrupts();
+    DIRECT_MODE_INPUT(pin_baseReg, pin_bitMask);
 
     wait(ONEWIRE_TIME_BUS_CHANGE_MAX); // let the input settle
 
@@ -245,15 +258,14 @@ bool OneWireHub::checkReset(uint16_t timeout_us) // there is a specific high-tim
     if (skip_reset_detection)
     {
         skip_reset_detection = 0;
-        _error = Error::NO_ERROR;
-
-        if (!waitWhilePinIs(0, ONEWIRE_TIME_RESET_MIN - ONEWIRE_TIME_SLOT_MAX))
+        if (!waitWhilePinIs(0, ONEWIRE_TIME_RESET_MIN - ONEWIRE_TIME_SLOT_MAX - ONEWIRE_TIME_READ_STD))
         {
+            waitWhilePinIs(0, ONEWIRE_TIME_RESET_MAX); // showPresence() wants to start at high, so wait for it
             return true;
         }
     }
 
-    if (!DIRECT_READ(reg, pin_bitMask)) return false; // just leave if pin is Low, don't bother to wait
+    if (!DIRECT_READ(pin_baseReg, pin_bitMask)) return false; // just leave if pin is Low, don't bother to wait
 
     // wait for the bus to become low (master-controlled), since we are polling we don't know for how long it was zero
     if (!waitWhilePinIs(1, timeout_us))
@@ -274,9 +286,11 @@ bool OneWireHub::checkReset(uint16_t timeout_us) // there is a specific high-tim
     // If the master pulled low for to short this will trigger an error
     if ((time_start + ONEWIRE_TIME_RESET_MIN) > micros())
     {
-        //_error = Error::VERY_SHORT_RESET;
+        //_error = Error::VERY_SHORT_RESET; // TODO: activate again, like the error above, errorhandling is mature enough now
         return false;
     }
+
+    overdrive_mode = false; // normal reset detected, so leave OD-Mode
 
     return true;
 }
@@ -284,22 +298,16 @@ bool OneWireHub::checkReset(uint16_t timeout_us) // there is a specific high-tim
 
 bool OneWireHub::showPresence(void)
 {
-    volatile uint8_t *reg asm("r30") = pin_baseReg;
-
     // Master will delay it's "Presence" check (bus-read)  after the reset
     waitWhilePinIs( 1, ONEWIRE_TIME_PRESENCE_SAMPLE_MIN); // no pinCheck demanded, but this additional check can cut waitTime
 
     // pull the bus low and hold it some time
-    noInterrupts();
-    DIRECT_WRITE_LOW(reg, pin_bitMask);
-    DIRECT_MODE_OUTPUT(reg, pin_bitMask);    // drive output low
-    interrupts();
+    DIRECT_WRITE_LOW(pin_baseReg, pin_bitMask);
+    DIRECT_MODE_OUTPUT(pin_baseReg, pin_bitMask);    // drive output low
 
     wait(ONEWIRE_TIME_PRESENCE_LOW_STD);
 
-    noInterrupts();
-    DIRECT_MODE_INPUT(reg, pin_bitMask);     // allow it to float
-    interrupts();
+    DIRECT_MODE_INPUT(pin_baseReg, pin_bitMask);     // allow it to float
 
     // When the master or other slaves release the bus within a given time everything is fine
     if (!waitWhilePinIs( 0, (ONEWIRE_TIME_PRESENCE_LOW_MAX - ONEWIRE_TIME_PRESENCE_LOW_STD)))
@@ -331,21 +339,18 @@ bool OneWireHub::search(void)
         if (position_IDBit == trigger_bit)
         {
             sendBit(false);
+            if (_error != Error::NO_ERROR)  return false;
             sendBit(false);
+            if (_error != Error::NO_ERROR)  return false;
             const bool bit_recv = recvBit();
-            if (_error != Error::NO_ERROR) return false;
+            if (_error != Error::NO_ERROR)  return false;
 
             // switch to next junction
-            if (bit_recv)   trigger_pos = idTree[trigger_pos].got_one;
-            else            trigger_pos = idTree[trigger_pos].got_zero;
+            trigger_pos = bit_recv ? idTree[trigger_pos].got_one : idTree[trigger_pos].got_zero;
 
             active_slave = idTree[trigger_pos].slave_selected;
 
-            if (trigger_pos == 255)
-                trigger_bit  = 255;
-            else
-                trigger_bit  = idTree[trigger_pos].id_position;
-
+            trigger_bit = (trigger_pos == 255) ? uint8_t(255) : idTree[trigger_pos].id_position;
         }
         else
         {
@@ -357,20 +362,23 @@ bool OneWireHub::search(void)
             {
                 bit_send = 1;
                 sendBit(true);
+                if (_error != Error::NO_ERROR)  return false;
                 sendBit(false);
+                if (_error != Error::NO_ERROR)  return false;
             }
             else
             {
                 bit_send = 0;
                 sendBit(false);
+                if (_error != Error::NO_ERROR)  return false;
                 sendBit(true);
+                if (_error != Error::NO_ERROR)  return false;
             }
 
             const bool bit_recv = recvBit();
             if (_error != Error::NO_ERROR)  return false;
 
-            if (bit_send != bit_recv)
-                return false;
+            if (bit_send != bit_recv)  return false;
         }
         position_IDBit++;
     }
@@ -383,8 +391,10 @@ bool OneWireHub::recvAndProcessCmd(void)
 {
     uint8_t address[8];
     bool    flag = false;
+
     uint8_t cmd = recv();
-    if (skip_reset_detection)       return true; // stay in loop and trigger another datastream-detection
+
+    if (skip_reset_detection)       return true; // stay in poll()-loop and trigger another datastream-detection
     if (_error != Error::NO_ERROR)  return false;
 
     switch (cmd)
@@ -393,6 +403,8 @@ bool OneWireHub::recvAndProcessCmd(void)
             search();
             return true; // always trigger a re-init after search
 
+        case 0x69: // overdrive MATCH ROM
+            overdrive_mode = true;
         case 0x55: // MATCH ROM - Choose/Select ROM
             recv(address, 8);
             if (_error != Error::NO_ERROR)  return false;
@@ -410,29 +422,36 @@ bool OneWireHub::recvAndProcessCmd(void)
                     {
                         flag = false;
                         break;
-                    }
-                }
+                    };
+                };
 
                 if (flag)
                 {
                     slave_selected = slave_list[i];
                     break;
-                }
-            }
+                };
+            };
 
             if (!flag)
             {
                 return false;
-            }
+            };
 
             if (slave_selected != nullptr)
             {
                 extend_timeslot_detection = 1;
+#if USE_GPIO_DEBUG
+                digitalWrite(GPIO_DEBUG_PIN,HIGH);
                 slave_selected->duty(this);
+                digitalWrite(GPIO_DEBUG_PIN,LOW);
+#else
+                slave_selected->duty(this);
+#endif
+            };
+            return !(getError());
 
-            }
-            return true;
-
+        case 0x3C: // overdrive SKIP ROM
+            overdrive_mode = true;
         case 0xCC: // SKIP ROM
             slave_selected = nullptr;
 
@@ -442,27 +461,47 @@ bool OneWireHub::recvAndProcessCmd(void)
                 {
                     slave_selected = slave_list[i];
                     break;
-                }
-            }
+                };
+            };
 
             if (slave_selected != nullptr)
             {
                 extend_timeslot_detection = 1;
+#if USE_GPIO_DEBUG
+                digitalWrite(GPIO_DEBUG_PIN,HIGH);
                 slave_selected->duty(this);
+                digitalWrite(GPIO_DEBUG_PIN,LOW);
+#else
+                slave_selected->duty(this);
+#endif
+            };
+            return !(getError());
+
+        case 0x0F: // OLD READ ROM
+            // only usable when there is ONE slave on the bus --> continue to current readRom
+
+        case 0x33: // READ ROM
+            // only usable when there is ONE slave on the bus
+            if (slave_count == 1) {
+                slave_selected = slave_list[getIndexOfNextSensorInList()];
+                if (slave_selected != nullptr)
+                {
+                    slave_selected->sendID(this);
+                };
             }
             return true;
 
-        case 0x33: // READ ROM
-        case 0x0F: // OLD READ ROM
-            // only usable when there is ONE slave on the bus
+        case 0xA5: // RESUME COMMAND
+            // TODO: maybe add function to fully support the ds2432
 
         default: // Unknown command
             _error = Error::INCORRECT_ONEWIRE_CMD;
             _error_cmd = cmd;
-    }
+    };
     return false;
-}
+};
 
+// info: check for errors after calling and break/return if possible
 bool OneWireHub::send(const uint8_t address[], const uint8_t data_length)
 {
     uint8_t bytes_sent = 0;
@@ -471,20 +510,27 @@ bool OneWireHub::send(const uint8_t address[], const uint8_t data_length)
     {
         send(address[bytes_sent]);
         if (_error != Error::NO_ERROR)  break;
-    }
+    };
     return (bytes_sent == data_length);
-}
+};
 
+// info: check for errors after calling and break/return if possible, or check for return==false
 bool OneWireHub::send(const uint8_t dataByte)
 {
     for (uint8_t bitMask = 0x01; bitMask; bitMask <<= 1)
     {
         sendBit((bitMask & dataByte) ? bool(1) : bool(0));
-        if (_error != Error::NO_ERROR) return false;
-    }
+        if (_error != Error::NO_ERROR)
+        {
+            if (bitMask == 0x01)      _error = Error::FIRST_BIT_OF_BYTE_TIMEOUT;
+            return false;
+        }
+    };
+    // TODO: was there an extend timeslot before? should be needed for loxone
     return true;
-}
+};
 
+// info: check for errors after calling and break/return if possible, TODO: why return crc both ways, detect first bit break
 uint16_t OneWireHub::sendAndCRC16(uint8_t dataByte, uint16_t crc16)
 {
     for (uint8_t counter = 0; counter < 8; ++counter)
@@ -501,6 +547,7 @@ uint16_t OneWireHub::sendAndCRC16(uint8_t dataByte, uint16_t crc16)
     return crc16;
 }
 
+// info: check for errors after calling and break/return if possible, or check for return==false
 bool OneWireHub::sendBit(const bool value)
 {
     // wait for a low to high transition followed by a high to low within the time-out
@@ -515,8 +562,7 @@ bool OneWireHub::sendBit(const bool value)
     {
         // if we wait for release we could detect faulty writing slots --> pedantic Mode not needed for now
         wait(ONEWIRE_TIME_WRITE_ZERO_LOW_STD);
-        volatile uint8_t *reg asm("r30") = pin_baseReg;
-        DIRECT_MODE_INPUT(reg, pin_bitMask);
+        DIRECT_MODE_INPUT(pin_baseReg, pin_bitMask);
     }
 
     return true;
@@ -530,7 +576,11 @@ bool OneWireHub::recv(uint8_t address[], const uint8_t data_length)
     for (bytes_received; bytes_received < data_length; ++bytes_received)
     {
         address[bytes_received] = recv();
-        if (_error != Error::NO_ERROR)  break;
+        if (_error != Error::NO_ERROR)
+        {
+            if (skip_reset_detection) _error = Error::NO_ERROR; // remove the pseudo error to leave recv() early,
+            break;
+        }
     }
     return (bytes_received == data_length);
 }
@@ -542,12 +592,18 @@ uint8_t OneWireHub::recv(void)
     for (uint8_t bitMask = 0x01; bitMask; bitMask <<= 1)
     {
         if (recvBit())  value |= bitMask;
-        if (_error != Error::NO_ERROR)  break;
+        if (_error != Error::NO_ERROR)
+        {
+            if (skip_reset_detection) _error = Error::NO_ERROR; // remove the pseudo error to leave recv() early
+            if (bitMask == 0x01)      _error = Error::FIRST_BIT_OF_BYTE_TIMEOUT;
+            break;
+        }
     }
+    // TODO: was there an extend timeslot before? should be needed for loxone
     return value;
 }
 
-// TODO: not happy with the interface - call by ref is slow here. maybe use a crc in class and expand with crc-reset and get?
+// TODO: not happy with the interface - call by ref is slow here. maybe use a crc in class and expand with crc-reset and get?, TODO: detect first bit break
 uint8_t OneWireHub::recvAndCRC16(uint16_t &crc16)
 {
     uint8_t value = 0;
@@ -577,31 +633,29 @@ bool OneWireHub::recvBit(void)
     // wait for a low to high transition followed by a high to low within the time-out
     if (!awaitTimeSlotAndWrite())
     {
-        if (extend_timeslot_detection==2)
+        if (skip_reset_detection)
         {
+            // after running through awaitTimeSlotAndWrite() for the second time and still getting a low this branch raises a pseudo-error to leave the caller recv()
             _error = Error::FIRST_TIMESLOT_TIMEOUT;
-            extend_timeslot_detection = 0;
         }
         else
         {
             _error = Error::READ_TIMESLOT_TIMEOUT;
         }
-
         return 0;
     }
 
     waitWhilePinIs( 0, ONEWIRE_TIME_READ_STD); // no pinCheck demanded, but this additional check can cut waitTime
-    volatile uint8_t *reg asm("r30") = pin_baseReg;
-    DIRECT_MODE_INPUT(reg, pin_bitMask);
+    DIRECT_MODE_INPUT(pin_baseReg, pin_bitMask);
 
-    return DIRECT_READ(reg, pin_bitMask);
+    return DIRECT_READ(pin_baseReg, pin_bitMask);
 }
 
 #define USE_DELAY 1
 
 void OneWireHub::wait(const uint16_t timeout_us)
 {
-#if (USE_DELAY > 0)
+#if USE_DELAY
     delayMicroseconds(timeout_us);
 #else
     uint32_t time_trigger = micros() + timeout_us;
@@ -613,20 +667,20 @@ void OneWireHub::wait(const uint16_t timeout_us)
 
 #define USE_MICROS 1
 
+// returns true if pins stays in the wanted state all the time
 bool OneWireHub::waitWhilePinIs(const bool value, const uint16_t timeout_us)
 {
-    volatile uint8_t *reg asm("r30") = pin_baseReg;
-    if (DIRECT_READ(reg, pin_bitMask) != value) return true; // shortcut
+    if (DIRECT_READ(pin_baseReg, pin_bitMask) != value) return true; // shortcut
 
-#if (USE_MICROS > 0)
+#if USE_MICROS
     uint32_t time_trigger = micros() + timeout_us;
-    while (DIRECT_READ(reg, pin_bitMask) == value)
+    while (DIRECT_READ(pin_baseReg, pin_bitMask) == value)
     {
         if (micros() >= time_trigger) return false;
     }
 #else
     uint16_t retries = static_cast<uint16_t>(microsecondsToClockCycles(timeout_us)/11);
-    while (DIRECT_READ(reg, pin_bitMask) == value)
+    while (DIRECT_READ(pin_baseReg, pin_bitMask) == value)
     {
         if (--retries == 0) return false;
     }
@@ -636,7 +690,7 @@ bool OneWireHub::waitWhilePinIs(const bool value, const uint16_t timeout_us)
 
 
 #define NEW_WAIT 0 // TODO: NewWait does not work as expected (and is deprecated)
-#if (NEW_WAIT > 0)
+#if NEW_WAIT
 
 // wait for a low to high transition followed by a high to low within the time-out
 bool OneWireHub::awaitTimeSlotAndWrite(void)
@@ -679,30 +733,30 @@ bool OneWireHub::awaitTimeSlotAndWrite(void)
 #define TIMESLOT_WAIT_RETRY_COUNT  static_cast<uint16_t>(microsecondsToClockCycles(135)/8)   /// :11 is a specif value for 8bit-atmega, still to determine
 bool OneWireHub::awaitTimeSlotAndWrite(const bool writeZero)
 {
-    volatile uint8_t *reg asm("r30") = pin_baseReg;
     noInterrupts();
-    DIRECT_WRITE_LOW(reg, pin_bitMask);
-    DIRECT_MODE_INPUT(reg, pin_bitMask);
+    DIRECT_WRITE_LOW(pin_baseReg, pin_bitMask);
+    DIRECT_MODE_INPUT(pin_baseReg, pin_bitMask);
 
     //While bus is low, retry until HIGH
     uint16_t retries = TIMESLOT_WAIT_RETRY_COUNT;
-    while (!DIRECT_READ(reg, pin_bitMask))
+    while (!DIRECT_READ(pin_baseReg, pin_bitMask))
     {
         if (--retries == 0)
         {
-            if (extend_timeslot_detection==2)
+            if (extend_timeslot_detection == 2)
             {
+                // this branch can be taken after calling THIS functions the second time in recvBit()
                 extend_timeslot_detection = 0;
                 skip_reset_detection      = 1;
             }
             else
             {
                 _error = Error::READ_TIMESLOT_TIMEOUT_LOW;
-            }
+            };
             interrupts();
             return false;
-        }
-    }
+        };
+    };
 
     // extend the wait-time after reset and presence-detection
     if (extend_timeslot_detection == 1)
@@ -714,28 +768,30 @@ bool OneWireHub::awaitTimeSlotAndWrite(const bool writeZero)
     {
         //retries = TIMESLOT_WAIT_RETRY_COUNT;
         retries = 65535; // TODO: workaround for better compatibility (will be solved later)
-    }
+    };
 
     //Wait for bus to fall form 1 to 0
-    while (DIRECT_READ(reg, pin_bitMask))
+    while (DIRECT_READ(pin_baseReg, pin_bitMask))
     {
         if (--retries == 0)
         {
             _error = Error::READ_TIMESLOT_TIMEOUT_HIGH;
             interrupts();
             return false;
-        }
-    }
+        };
+    };
+
+    // if extend_timeslot_detection == 2 we could safe millis()
 
     if (writeZero)
     {
         // Low is allready set
-        DIRECT_MODE_OUTPUT(reg, pin_bitMask);
-    }
+        DIRECT_MODE_OUTPUT(pin_baseReg, pin_bitMask);
+    };
 
     interrupts();
     return true;
-}
+};
 #endif
 
 
@@ -770,7 +826,7 @@ void OneWireHub::printError(void)
     }
 
 #endif
-}
+};
 
 bool OneWireHub::getError(void)
 {
@@ -781,4 +837,11 @@ void OneWireHub::raiseSlaveError(const uint8_t cmd)
 {
     _error = Error::INCORRECT_SLAVE_USAGE;
     _error_cmd = cmd;
+};
+
+Error OneWireHub::clearError(void) // and return it if needed
+{
+    Error _tmp = _error;
+    _error = Error::NO_ERROR;
+    return _tmp;
 };
