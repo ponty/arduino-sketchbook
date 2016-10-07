@@ -16,3 +16,6 @@
 [submodule "libraries/MemoryFree"]
 	path = libraries/MemoryFree
 	url = https://github.com/McNeight/MemoryFree.git
+[submodule "libraries/rc-switch"]
+	path = libraries/rc-switch
+	url = https://github.com/sui77/rc-switch.git
