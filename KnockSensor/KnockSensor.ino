@@ -23,22 +23,48 @@
 
  */
 
+
 // these constants won't change:
 const int ledPin = 13;      // led connected to digital pin 13
 const int knockSensor = A0; // the piezo is connected to analog pin 0
 const int threshold = 30; // threshold value to decide when the detected sound is a knock or not
 const int threshold_low = 8;
 const int wait = 100;    // ms
+#define INTRO
 
 // these variables will change:
 int sensorReading = 0;   // variable to store the value read from the sensor pin
 int ledState = LOW; // variable used to store the last LED status, to toggle the light
 
+#ifdef INTRO
+#include <rtttl.h>
+const int octave = 0;
+const int pinSpeaker = knockSensor;
+
+const char song_P[] PROGMEM =
+        "Indiana:d=4,o=5,b=250:e,8p,8f,8g,8p,1c6";
+
+Rtttl player;
+#endif
+
+
 void setup()
 {
     pinMode(ledPin, OUTPUT); // declare the ledPin as as OUTPUT
     Serial.begin(9600);       // use the serial port
+
+#ifdef INTRO
+    player.begin(pinSpeaker);
+    player.play_P(song_P, octave);
+#endif
+    
+    pinMode(knockSensor, INPUT);
+
 }
+
+
+
+
 
 int on = 0;
 unsigned long last_time = 0;
