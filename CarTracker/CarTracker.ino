@@ -6,39 +6,40 @@
 
 #include <Phant.h>
 
+//#define PHANT_HOST        "data.sparkfun.com"
+//#define PHANT_PUBLIC_KEY  "VGb2Y1jD4VIxjX3x196z" 
+//#define PHANT_PRIVATE_KEY "9YBaDk6yeMtNErDNq4YM"
+//#define		APN 		"internet.vodafone.net"
+//#define 	SIM_PIN  		"1234"
 #include "secret.h"
-
-#define PHANT_HOST        "data.sparkfun.com"
-#define PHANT_PUBLIC_KEY  "VGb2Y1jD4VIxjX3x196z" 
-#define PHANT_PRIVATE_KEY "9YBaDk6yeMtNErDNq4YM"
 
 Phant phant(PHANT_HOST, PHANT_PUBLIC_KEY, PHANT_PRIVATE_KEY);
 
 #include "Adafruit_FONA.h"
 
-#define FONA_RX 2
-#define FONA_TX 3
-#define FONA_RST 4
+#include "hwconfig.h"
+
+#include "accelero.h"
 
 // this is a large buffer for replies
-char replybuffer[255];
+//char replybuffer[255];
 
 // We default to using software serial. If you want to use hardware serial
 // (because softserial isnt supported) comment out the following three lines 
 // and uncomment the HardwareSerial line
 #include <SoftwareSerial.h>
-SoftwareSerial fonaSS = SoftwareSerial(FONA_TX, FONA_RX);
+SoftwareSerial fonaSS = SoftwareSerial(PIN_FONA_TX, PIN_FONA_RX);
 SoftwareSerial *fonaSerial = &fonaSS;
 
 // Hardware serial is also possible!
 //  HardwareSerial *fonaSerial = &Serial1;
 
 // Use this for FONA 800 and 808s
-Adafruit_FONA fona = Adafruit_FONA(FONA_RST);
+Adafruit_FONA fona = Adafruit_FONA(PIN_FONA_RST);
 // Use this one for FONA 3G
 //Adafruit_FONA_3G fona = Adafruit_FONA_3G(FONA_RST);
 
-uint8_t readline(char *buff, uint8_t maxbuff, uint16_t timeout = 0);
+//uint8_t readline(char *buff, uint8_t maxbuff, uint16_t timeout = 0);
 
 uint8_t type;
 
@@ -134,6 +135,7 @@ void setup()
 	while (read_network_status() == 2)	//searching
 	{
 		delay(1000);
+		tone(PIN_SPEAKER, 500, 10);
 	}
 
 	// turn GPRS on
@@ -169,20 +171,18 @@ void setup()
 //	Serial.println(buffer);
 
 	// check for GSMLOC (requires GPRS)
-	uint16_t returncode;
-	if (!fona.getGSMLoc(&returncode, replybuffer, 250))
-		Serial.println(F("GSMLOC Failed!"));
-	if (returncode == 0)
-	{
-		Serial.println(replybuffer);
-	}
-	else
-	{
-		Serial.print(F("GSMLOC Fail code #"));
-		Serial.println(returncode);
-	}
-
-	post_data_to_website("httpbin.org/post", "foo");
+//	uint16_t returncode;
+//	if (!fona.getGSMLoc(&returncode, replybuffer, 250))
+//		Serial.println(F("GSMLOC Failed!"));
+//	if (returncode == 0)
+//	{
+//		Serial.println(replybuffer);
+//	}
+//	else
+//	{
+//		Serial.print(F("GSMLOC Fail code #"));
+//		Serial.println(returncode);
+//	}
 
 }
 
@@ -207,58 +207,15 @@ int read_network_status()
 		Serial.println(F("Registered roaming"));
 	return n;
 }
-void post_data_to_website(char* url, char* data)
-{
-	// Post data to website
-	uint16_t statuscode;
-	int16_t length;
-//	char url[80];
-//	char data[80];
-
-	Serial.println("post_data_to_website");
-
-	flushSerial();
-
-//	Serial.println(F("NOTE: in beta! Use simple websites to post!"));
-//	Serial.println(F("URL to post (e.g. httpbin.org/post):"));
-	Serial.print(F("http://"));
-//	readline(url, 79);
-	Serial.println(url);
-//	Serial.println(
-//			F("Data to post (e.g. \"foo\" or \"{\"simple\":\"json\"}\"):"));
-//	readline(data, 79);
-	Serial.println(data);
-
-	Serial.println(F("****"));
-	if (!fona.HTTP_POST_start(url, F("text/plain"), (uint8_t *) data,
-			strlen(data), &statuscode, (uint16_t *) &length))
-	{
-		Serial.println("Failed!");
-	}
-	while (length > 0)
-	{
-		while (fona.available())
-		{
-			char c = fona.read();
-
-//#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__)
-//			loop_until_bit_is_set(UCSR0A, UDRE0); /* Wait until data register empty. */
-//			UDR0 = c;
-//#else
-			Serial.write(c);
-//#endif
-
-			length--;
-			if (!length)
-				break;
-		}
-	}
-	Serial.println(F("\n****"));
-	fona.HTTP_POST_end();
-}
 
 void loop()
 {
+    int a = accelero_loop();
+    if(a)
+    {
+    	aaWorld.x;
+    }
+    
 	uint8_t rssi = fona.getRSSI();
 	Serial.print(F("RSSI = "));
 	Serial.println(rssi);
@@ -287,9 +244,6 @@ void loop()
 	phant.add("a", 72);
 //	phant.url()
 
-//	post_data_to_website("httpbin.org/post", "foo");
-
-		
 		
 	// read website URL
 	uint16_t statuscode;
@@ -304,9 +258,11 @@ void loop()
 //	readline(url, 79);
 //	Serial.println(url);
 
+	tone(PIN_SPEAKER, 200, 10);
 	Serial.println(F("****"));
-	if (!fona.HTTP_GET_start(phant.url().c_str(), &statuscode, (uint16_t *) &length))
+	if (!fona.HTTP_GET_start((char*)(phant.url().c_str()), &statuscode, (uint16_t *) &length))
 	{
+		tone(PIN_SPEAKER, 1000, 100);
 		Serial.println("Failed!");
 	}
 	else
@@ -330,10 +286,13 @@ void loop()
 	}
 	Serial.println(F("\n****"));
 	fona.HTTP_GET_end();
+	tone(PIN_SPEAKER, 400, 10);
 
 	
-	
-	delay(10000);
+	for(int i=0;i<10;i++)
+	{
+		delay(1000);	// 1 sec
+	}
 }
 
 void flushSerial()
