@@ -29,7 +29,8 @@ the commented section below at the end of the setup() function.
 */
 #include "Adafruit_FONA.h"
 
-#define FONA_RX 2
+//#define FONA_RX 2
+#define FONA_RX 5
 #define FONA_TX 3
 #define FONA_RST 4
 
