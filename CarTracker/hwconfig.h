@@ -10,9 +10,10 @@
 
 // A4	SDA
 // A5	SCL
-#define OFFSET_X_ACCEL 	560
-#define OFFSET_Y_ACCEL 	-990
-#define OFFSET_Z_ACCEL 	1207
-#define OFFSET_X_GYRO 	102
-#define OFFSET_Y_GYRO 	-28
-#define OFFSET_Z_GYRO 	3
+
+//#define OFFSET_X_ACCEL 	560
+//#define OFFSET_Y_ACCEL 	-990
+//#define OFFSET_Z_ACCEL 	1207
+//#define OFFSET_X_GYRO 	102
+//#define OFFSET_Y_GYRO 	-28
+//#define OFFSET_Z_GYRO 	3
