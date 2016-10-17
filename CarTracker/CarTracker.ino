@@ -45,15 +45,11 @@ SoftwareSerial *fonaSerial = &fonaSS;
 // Hardware serial is also possible!
 //  HardwareSerial *fonaSerial = &Serial1;
 
-// Use this for FONA 800 and 808s
 Adafruit_FONA fona = Adafruit_FONA(PIN_FONA_RST);
-// Use this one for FONA 3G
-//Adafruit_FONA_3G fona = Adafruit_FONA_3G(FONA_RST);
 
-//uint8_t readline(char *buff, uint8_t maxbuff, uint16_t timeout = 0);
+//uint8_t type;
 
-uint8_t type;
-
+#define HALT()    while(1);
 void setup()
 {
     while (!Serial)
@@ -73,16 +69,24 @@ void setup()
     /////////////////////////////////////////////////////////
     
     // initialize device
-//    Serial.println("Initializing I2C devices...");
+    Serial.println(F("Initializing I2C devices..."));
     mpu.initialize();
 
     // verify connection
-//    Serial.println("Testing device connections...");
-//    Serial.println(mpu.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
+    Serial.println(F("Testing device connections..."));
+    if(mpu.testConnection())
+    {
+        Serial.println(F("MPU6050 connection successful"));        
+    }
+    else
+    {
+        Serial.println(F("MPU6050 connection failed"));  
+        HALT();
+    }
 
     // enable Arduino interrupt detection
-//    Serial.print(F("Enabling interrupt detection on pin "));
-//    Serial.println(INTERRUPT_PIN);
+    Serial.print(F("Enabling interrupt detection on pin "));
+    Serial.println(INTERRUPT_PIN);
     attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), interruptHandler, RISING);
     mpuIntStatus = mpu.getIntStatus();
 
@@ -91,31 +95,7 @@ void setup()
     mpu.setDHPFMode(DHPF_MODE);
     mpu.setMotionDetectionCounterDecrement(MOTION_DETECTION_COUNTER_DECREMENT);
     mpu.setIntMotionEnabled(1);
-    
-    
-//    Serial.print("getIntEnabled ");        
-//    Serial.println(mpu.getIntEnabled());        
-//    
-//    Serial.print("getIntMotionEnabled ");        
-//    Serial.println(mpu.getIntMotionEnabled());        
-//    
-//    Serial.print("getMotionDetectionThreshold ");        
-//    Serial.println(mpu.getMotionDetectionThreshold());        
-//    
-//    Serial.print("getMotionDetectionDuration ");        
-//    Serial.println(mpu.getMotionDetectionDuration());        
-//    
-//    Serial.print("getMotionDetectionCounterDecrement ");        
-//    Serial.println(mpu.getMotionDetectionCounterDecrement());        
-//    
-//    Serial.print("getDHPFMode ");        
-//    Serial.println(mpu.getDHPFMode());        
-    
-//    Serial.print("getIntMotionStatus ");        
-//    Serial.println(mpu.getIntMotionStatus());        
-    
-
-    
+       
     /////////////////////////////////////////////////////////
     // GSM
     /////////////////////////////////////////////////////////
@@ -129,33 +109,33 @@ void setup()
         while (1)
             ;
     }
-    type = fona.type();
+//    type = fona.type();
     Serial.println(F("FONA is OK"));
-    Serial.print(F("Found "));
-    switch (type)
-    {
-    case FONA800L:
-        Serial.println(F("FONA 800L"));
-        break;
-    case FONA800H:
-        Serial.println(F("FONA 800H"));
-        break;
-    case FONA808_V1:
-        Serial.println(F("FONA 808 (v1)"));
-        break;
-    case FONA808_V2:
-        Serial.println(F("FONA 808 (v2)"));
-        break;
-    case FONA3G_A:
-        Serial.println(F("FONA 3G (American)"));
-        break;
-    case FONA3G_E:
-        Serial.println(F("FONA 3G (European)"));
-        break;
-    default:
-        Serial.println(F("???"));
-        break;
-    }
+//    Serial.print(F("Found "));
+//    switch (type)
+//    {
+//    case FONA800L:
+//        Serial.println(F("FONA 800L"));
+//        break;
+//    case FONA800H:
+//        Serial.println(F("FONA 800H"));
+//        break;
+//    case FONA808_V1:
+//        Serial.println(F("FONA 808 (v1)"));
+//        break;
+//    case FONA808_V2:
+//        Serial.println(F("FONA 808 (v2)"));
+//        break;
+//    case FONA3G_A:
+//        Serial.println(F("FONA 3G (American)"));
+//        break;
+//    case FONA3G_E:
+//        Serial.println(F("FONA 3G (European)"));
+//        break;
+//    default:
+//        Serial.println(F("???"));
+//        break;
+//    }
 
     // Print module IMEI number.
 //    char imei[15] =
@@ -175,17 +155,10 @@ void setup()
     //fona.setGPRSNetworkSettings(F("your APN"), F("your username"), F("your password"));
     fona.setGPRSNetworkSettings(F(APN));
 
-    // Optionally configure HTTP gets to follow redirects over SSL.
-    // Default is not to follow SSL redirects, however if you uncomment
-    // the following line then redirects over SSL will be followed.
-    //fona.setHTTPSRedirect(true);
+//    delay(1000);
 
-    //printMenu();
-
-    delay(1000);
-
-    Serial.print(F("RSSI = "));
-    Serial.println(fona.getRSSI());
+//    Serial.print(F("RSSI = "));
+//    Serial.println(fona.getRSSI());
 
     // enable network time sync
 //	if (!fona.enableNetworkTimeSync(true))
@@ -268,6 +241,11 @@ char *latp=0;
 
 void loop()
 {
+    while(!mpuInterrupt)
+    {
+        delay(1000);
+    }
+    
     motion=0;
     if (mpuInterrupt)
     {
@@ -295,8 +273,7 @@ void loop()
     if (!fona.getBattVoltage(&vbat))
     {
         Serial.println(F("Failed to read Batt"));
-        while(1)
-            ;
+        HALT();
     }
     else
     {
@@ -321,8 +298,7 @@ void loop()
     else
     {
         Serial.println(F("getGSMLoc Failed!"));
-        while(1)
-            ;
+        HALT();
     }
 
 //    phant.add("a", 72);
@@ -353,7 +329,7 @@ void loop()
     
 //    Serial.print(F("url: "));
 //    Serial.println((char*) (phant.url().c_str()));
-//    while(1);
+//    HALT();
 //    return;
    
     if (!HTTP_GET_start(&statuscode, (uint16_t *) &length))
