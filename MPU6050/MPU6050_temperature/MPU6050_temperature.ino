@@ -7,7 +7,7 @@
 #include "Wire.h"
 #endif
 
-MPU6050 accelgyro;
+MPU6050 mpu;
 
 void setup()
 {
@@ -21,21 +21,21 @@ void setup()
 
     // initialize device
     Serial.println("Initializing I2C devices...");
-    accelgyro.initialize();
+    mpu.initialize();
 
     // verify connection
     Serial.println("Testing device connections...");
     Serial.println(
-            accelgyro.testConnection() ?
+            mpu.testConnection() ?
                     "MPU6050 connection successful" :
                     "MPU6050 connection failed");
 
-    accelgyro.setTempSensorEnabled(1);
+    mpu.setTempSensorEnabled(1);
 }
 
 void loop()
 {
-    int16_t t = accelgyro.getTemperature();
+    int16_t t = mpu.getTemperature();
     Serial.print("temperature: ");
 //    Serial.print(t);
 //    Serial.print("  ");
