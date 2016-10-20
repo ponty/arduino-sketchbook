@@ -30,6 +30,13 @@ void setup(void)
 
 void loop(void)
 {
+    while (gps.available())
+    {
+        char c = gps.read();
+        console.print(c);
+        nmea.process(c);
+    }
+    
 	unsigned long currentMillis = millis();
 	if (currentMillis - previousMillis >= interval)
 	{
@@ -40,7 +47,10 @@ void loop(void)
 		// Output GPS information from previous second
 		console.print("Valid fix: ");
 		console.println(nmea.isValid() ? "yes" : "no");
-
+		
+        if (!nmea.isValid())
+          return;
+        
 		console.print("Nav. system: ");
 		if (nmea.getNavSystem())
 			console.println(nmea.getNavSystem());
@@ -87,13 +97,6 @@ void loop(void)
 		console.println(nmea.getCourse() / 1000., 3);
 
 		console.println("-----------------------");
-	}
-
-	while (gps.available())
-	{
-		char c = gps.read();
-		console.print(c);
-		nmea.process(c);
 	}
 
 }
