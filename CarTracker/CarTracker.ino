@@ -109,60 +109,9 @@ void setup()
         while (1)
             ;
     }
-//    type = fona.type();
     Serial.println(F("FONA is OK"));
-//    Serial.print(F("Found "));
-//    switch (type)
-//    {
-//    case FONA800L:
-//        Serial.println(F("FONA 800L"));
-//        break;
-//    case FONA800H:
-//        Serial.println(F("FONA 800H"));
-//        break;
-//    case FONA808_V1:
-//        Serial.println(F("FONA 808 (v1)"));
-//        break;
-//    case FONA808_V2:
-//        Serial.println(F("FONA 808 (v2)"));
-//        break;
-//    case FONA3G_A:
-//        Serial.println(F("FONA 3G (American)"));
-//        break;
-//    case FONA3G_E:
-//        Serial.println(F("FONA 3G (European)"));
-//        break;
-//    default:
-//        Serial.println(F("???"));
-//        break;
-//    }
 
-    // Print module IMEI number.
-//    char imei[15] =
-//    { 0 }; // MUST use a 16 character buffer for IMEI!
-//    uint8_t imeiLen = fona.getIMEI(imei);
-//    if (imeiLen > 0)
-//    {
-//        Serial.print("Module IMEI: ");
-//        Serial.println(imei);
-//    }
-
-    // Optionally configure a GPRS APN, username, and password.
-    // You might need to do this to access your network's GPRS/data
-    // network.  Contact your provider for the exact APN, username,
-    // and password values.  Username and password are optional and
-    // can be removed, but APN is required.
-    //fona.setGPRSNetworkSettings(F("your APN"), F("your username"), F("your password"));
     fona.setGPRSNetworkSettings(F(APN));
-
-//    delay(1000);
-
-//    Serial.print(F("RSSI = "));
-//    Serial.println(fona.getRSSI());
-
-    // enable network time sync
-//	if (!fona.enableNetworkTimeSync(true))
-//		Serial.println(F("Failed to enable network time sync"));
 
 #ifdef SIM_PIN  
     while (! fona.unlockSIM(SIM_PIN))
@@ -175,17 +124,10 @@ void setup()
 
     while (read_network_status() == 2)	//searching
     {
+        Serial.println(F("network_status: searching"));
         delay(1000);
         tone(PIN_SPEAKER, 500, 10);
     }
-
-    // turn GPRS on
-    while (!fona.enableGPRS(true))
-    {
-        Serial.println(F("Failed to turn on GPRS"));
-        delay(1000);
-    }
-    Serial.println(F("GPRS OK"));
 
     // read the network/cellular status
     uint8_t n = fona.getNetworkStatus();
@@ -204,6 +146,14 @@ void setup()
         Serial.println(F("Unknown"));
     if (n == 5)
         Serial.println(F("Registered roaming"));
+
+    // turn GPRS on
+    while (!fona.enableGPRS(true))
+    {
+        Serial.println(F("Failed to turn on GPRS"));
+        delay(2000);
+    }
+    Serial.println(F("GPRS OK"));
 
 }
 
@@ -232,8 +182,6 @@ int read_network_status()
 uint16_t vbat;
 uint8_t rssi;
 uint8_t motion;
-//float gsmlat;
-//float gsmlon;
 float temp;
 char gpsbuffer[70];
 char *longp=0;
@@ -273,7 +221,8 @@ void loop()
     if (!fona.getBattVoltage(&vbat))
     {
         Serial.println(F("Failed to read Batt"));
-        HALT();
+        delay(1000);
+        return;
     }
     else
     {
@@ -298,11 +247,10 @@ void loop()
     else
     {
         Serial.println(F("getGSMLoc Failed!"));
-        HALT();
+        delay(1000);
+        return;
     }
 
-//    phant.add("a", 72);
-//	phant.url()
 
     // read website URL
     uint16_t statuscode;
@@ -318,19 +266,8 @@ void loop()
 //	Serial.println(url);
 
 //    tone(PIN_SPEAKER, 200, 10);
-    Serial.println(F("****"));
+    Serial.println(F("sending.."));
 
-//    Serial.print(F("url: "));
-//    Serial.println(phant.url());
-//    
-//    String xx = phant.url();
-//    Serial.print(F("url: "));
-//    Serial.println((char*) (xx.c_str()));
-    
-//    Serial.print(F("url: "));
-//    Serial.println((char*) (phant.url().c_str()));
-//    HALT();
-//    return;
    
     if (!HTTP_GET_start(&statuscode, (uint16_t *) &length))
 //    if (!fona.HTTP_GET_start((char*) (phant.url().c_str()), &statuscode,
