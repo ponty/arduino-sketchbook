@@ -4,6 +4,9 @@
 
 #define PIN_SPEAKER 	12
 
+#define PIN_GPS_RX     10
+#define PIN_GPS_TX     11
+
 // MPU6050
 // D2 	interrupt
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
@@ -17,3 +20,5 @@
 //#define OFFSET_X_GYRO 	102
 //#define OFFSET_Y_GYRO 	-28
 //#define OFFSET_Z_GYRO 	3
+
+#define console  Serial

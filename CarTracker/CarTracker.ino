@@ -17,6 +17,8 @@
 #include "I2Cdev.h"
 #include "MPU6050.h"
 
+#include <MicroNMEA.h>
+
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
 #endif
@@ -42,6 +44,10 @@ void interruptHandler() {
 SoftwareSerial fonaSS = SoftwareSerial(PIN_FONA_TX, PIN_FONA_RX);
 SoftwareSerial *fonaSerial = &fonaSS;
 
+SoftwareSerial gps(PIN_GPS_RX, PIN_GPS_TX); // RX, TX
+char nmeaBuffer[85];
+MicroNMEA nmea(nmeaBuffer, sizeof(nmeaBuffer));
+
 // Hardware serial is also possible!
 //  HardwareSerial *fonaSerial = &Serial1;
 
@@ -50,12 +56,14 @@ Adafruit_FONA fona = Adafruit_FONA(PIN_FONA_RST);
 //uint8_t type;
 
 #define HALT()    while(1);
+
+
 void setup()
 {
     while (!Serial)
         ;
 
-    Serial.begin(115200);
+    console.begin(115200);
     
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     Wire.begin();
@@ -63,30 +71,34 @@ void setup()
     Fastwire::setup(400, true);
 #endif
 
-    
+    /////////////////////////////////////////////////////////
+    // GPS
+    /////////////////////////////////////////////////////////
+    gps.begin(9600);
+
     /////////////////////////////////////////////////////////
     // MPU6050
     /////////////////////////////////////////////////////////
     
     // initialize device
-    Serial.println(F("Initializing I2C devices..."));
+    console.println(F("Initializing I2C devices..."));
     mpu.initialize();
 
     // verify connection
-    Serial.println(F("Testing device connections..."));
+    console.println(F("Testing device connections..."));
     if(mpu.testConnection())
     {
-        Serial.println(F("MPU6050 connection successful"));        
+        console.println(F("MPU6050 connection successful"));        
     }
     else
     {
-        Serial.println(F("MPU6050 connection failed"));  
+        console.println(F("MPU6050 connection failed"));  
         HALT();
     }
 
     // enable Arduino interrupt detection
-    Serial.print(F("Enabling interrupt detection on pin "));
-    Serial.println(INTERRUPT_PIN);
+    console.print(F("Enabling interrupt detection on pin "));
+    console.println(INTERRUPT_PIN);
     attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), interruptHandler, RISING);
     mpuIntStatus = mpu.getIntStatus();
 
@@ -99,61 +111,62 @@ void setup()
     /////////////////////////////////////////////////////////
     // GSM
     /////////////////////////////////////////////////////////
-    Serial.println(F("FONA basic test"));
-    Serial.println(F("Initializing....(May take 3 seconds)"));
+    console.println(F("FONA basic test"));
+    console.println(F("Initializing....(May take 3 seconds)"));
 
     fonaSerial->begin(4800);
+    
     if (!fona.begin(*fonaSerial))
     {
-        Serial.println(F("Couldn't find FONA"));
+        console.println(F("Couldn't find FONA"));
         while (1)
             ;
     }
-    Serial.println(F("FONA is OK"));
+    console.println(F("FONA is OK"));
 
     fona.setGPRSNetworkSettings(F(APN));
 
 #ifdef SIM_PIN  
     while (! fona.unlockSIM(SIM_PIN))
     {
-        Serial.println(F("Unlock Failed"));
+        console.println(F("Unlock Failed"));
         delay(1000);
     }
-    Serial.println(F("Unlock  OK!"));
+    console.println(F("Unlock  OK!"));
 #endif
 
     while (read_network_status() == 2)	//searching
     {
-        Serial.println(F("network_status: searching"));
+        console.println(F("network_status: searching"));
         delay(1000);
         tone(PIN_SPEAKER, 500, 10);
     }
 
     // read the network/cellular status
     uint8_t n = fona.getNetworkStatus();
-    Serial.print(F("Network status "));
-    Serial.print(n);
-    Serial.print(F(": "));
+    console.print(F("Network status "));
+    console.print(n);
+    console.print(F(": "));
     if (n == 0)
-        Serial.println(F("Not registered"));
+        console.println(F("Not registered"));
     if (n == 1)
-        Serial.println(F("Registered (home)"));
+        console.println(F("Registered (home)"));
     if (n == 2)
-        Serial.println(F("Not registered (searching)"));
+        console.println(F("Not registered (searching)"));
     if (n == 3)
-        Serial.println(F("Denied"));
+        console.println(F("Denied"));
     if (n == 4)
-        Serial.println(F("Unknown"));
+        console.println(F("Unknown"));
     if (n == 5)
-        Serial.println(F("Registered roaming"));
+        console.println(F("Registered roaming"));
 
     // turn GPRS on
     while (!fona.enableGPRS(true))
     {
-        Serial.println(F("Failed to turn on GPRS"));
+        console.println(F("Failed to turn on GPRS"));
         delay(2000);
     }
-    Serial.println(F("GPRS OK"));
+    console.println(F("GPRS OK"));
 
 }
 
@@ -161,21 +174,21 @@ int read_network_status()
 {
     // read the network/cellular status
     uint8_t n = fona.getNetworkStatus();
-    Serial.print(F("Network status "));
-    Serial.print(n);
-    Serial.print(F(": "));
+    console.print(F("Network status "));
+    console.print(n);
+    console.print(F(": "));
     if (n == 0)
-        Serial.println(F("Not registered"));
+        console.println(F("Not registered"));
     if (n == 1)
-        Serial.println(F("Registered (home)"));
+        console.println(F("Registered (home)"));
     if (n == 2)
-        Serial.println(F("Not registered (searching)"));
+        console.println(F("Not registered (searching)"));
     if (n == 3)
-        Serial.println(F("Denied"));
+        console.println(F("Denied"));
     if (n == 4)
-        Serial.println(F("Unknown"));
+        console.println(F("Unknown"));
     if (n == 5)
-        Serial.println(F("Registered roaming"));
+        console.println(F("Registered roaming"));
     return n;
 }
 
@@ -187,12 +200,45 @@ char gpsbuffer[70];
 char *longp=0;
 char *latp=0;
 
+unsigned long previousMillis = 0;
+
+long latitude_mdeg = 0;
+long longitude_mdeg = 0;
+long speed = 0;
+uint8_t hdop = 0;
+
 void loop()
 {
-    while(!mpuInterrupt)
+   
+    if(!mpuInterrupt)
     {
-        delay(1000);
+        return;
     }
+
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis < 10000)
+    {
+        return;
+    }
+    
+    nmea.clear();
+    gps.listen();
+    while (1)
+    {
+        if(gps.available())
+        {
+            char c = gps.read();
+            console.print(c);
+            nmea.process(c);
+        }
+        if(nmea.getHDOP()<255)
+            break;
+    }
+    console.println();
+    
+    fonaSS.listen();
+
+    previousMillis = currentMillis;
     
     motion=0;
     if (mpuInterrupt)
@@ -205,48 +251,82 @@ void loop()
 
         if (mpuIntStatus & MPU6050_INTERRUPT_MOT_BIT_MASK)
         {
-            Serial.println("motion interrupt ");
+            console.println("motion interrupt ");
         }
         motion=1;
     }
     
     int16_t t = mpu.getTemperature();
     temp = t / 340.00 + 36.53; //equation for temperature in degrees C from datasheet
-    Serial.print("temperature: ");
-    Serial.print(temp); 
-    Serial.println(" C");
+    console.print("temperature: ");
+    console.print(temp); 
+    console.println(" C");
     
-    
+    // GPS
+    if (nmea.isValid())
+    {
+        console.println(F("GPS valid"));
+
+        hdop = nmea.getHDOP();
+        console.print(F("HDOP:"));
+        console.println(hdop);
+         
+        latitude_mdeg = nmea.getLatitude();
+        console.print(F("Latitude (deg): "));
+        console.println(latitude_mdeg);
+
+        longitude_mdeg = nmea.getLongitude();
+        console.print(F("Longitude (deg): "));
+        console.println(longitude_mdeg);
+
+//        long alt;
+//        console.print(F("Altitude (m): "));
+//        if (nmea.getAltitude(alt))
+//            console.println(alt / 1000., 3);
+//        else
+//            console.println(F("not available"));
+        
+        speed = nmea.getSpeed();
+        console.print(F("Speed: "));
+        console.println(speed);
+
+    }
+    else
+    {
+        console.println(F("GPS invalid"));
+        return;
+    }
+        
     // read the battery voltage
     if (!fona.getBattVoltage(&vbat))
     {
-        Serial.println(F("Failed to read Batt"));
+        console.println(F("Failed to read Batt"));
         delay(1000);
         return;
     }
     else
     {
-        Serial.print(F("VBat = "));
-        Serial.print(vbat);
-        Serial.println(F(" mV"));
+        console.print(F("VBat = "));
+        console.print(vbat);
+        console.println(F(" mV"));
     }
 
     rssi = fona.getRSSI();
-    Serial.print(F("RSSI = "));
-    Serial.println(rssi);
+    console.print(F("RSSI = "));
+    console.println(rssi);
 
 
     boolean ok = getGSMLoc();
     if (ok)
     {
-        Serial.print(F("GSMLoc (lat,lon) = "));
-        Serial.print(latp);
-        Serial.print(F(" "));
-        Serial.println(longp);       
+        console.print(F("GSMLoc (lat,lon) = "));
+        console.print(latp);
+        console.print(F(" "));
+        console.println(longp);       
     }
     else
     {
-        Serial.println(F("getGSMLoc Failed!"));
+        console.println(F("getGSMLoc Failed!"));
         delay(1000);
         return;
     }
@@ -258,15 +338,15 @@ void loop()
 //	char url[80];
 
 //	flushSerial();
-//	Serial.println(F("NOTE: in beta! Use small webpages to read!"));
-//	Serial.println(
+//	console.println(F("NOTE: in beta! Use small webpages to read!"));
+//	console.println(
 //			F("URL to read (e.g. www.adafruit.com/testwifi/index.html):"));
-//	Serial.print(F("http://"));
+//	console.print(F("http://"));
 //	readline(url, 79);
-//	Serial.println(url);
+//	console.println(url);
 
 //    tone(PIN_SPEAKER, 200, 10);
-    Serial.println(F("sending.."));
+    console.println(F("sending.."));
 
    
     if (!HTTP_GET_start(&statuscode, (uint16_t *) &length))
@@ -274,7 +354,7 @@ void loop()
 //            (uint16_t *) &length))
     {
         tone(PIN_SPEAKER, 1000, 100);
-        Serial.println("Failed!");
+        console.println("Failed!");
     }
     else
         while (length > 0)
@@ -283,26 +363,23 @@ void loop()
             {
                 char c = fona.read();
 
-                // Serial.write is too slow, we'll write directly to Serial register!
+                // console.write is too slow, we'll write directly to console register!
 //#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__)
 //			loop_until_bit_is_set(UCSR0A, UDRE0); // Wait until data register empty. 
 //			UDR0 = c;
 //#else
-                Serial.write(c);
+                console.write(c);
 //#endif
                 length--;
                 if (!length)
                     break;
             }
         }
-    Serial.println(F("\n****"));
+    console.println(F("\n****"));
     fona.HTTP_GET_end();
     tone(PIN_SPEAKER, 400, 10);
 
-    for (int i = 0; i < 10; i++)
-    {
-        delay(1000);	// 1 sec
-    }
+
     
 }
 
@@ -335,6 +412,18 @@ boolean HTTP_para_url() {
     fonaSS.print(F("&motion="));
     fonaSS.print(motion);
     
+    fonaSS.print(F("&lat="));
+    fonaSS.print(latitude_mdeg);
+
+    fonaSS.print(F("&lon="));
+    fonaSS.print(longitude_mdeg);
+
+    fonaSS.print(F("&hdop="));
+    fonaSS.print(hdop);
+
+    fonaSS.print(F("&speed="));
+    fonaSS.print(speed);
+
     return fona.HTTP_para_end(true);
 }
 
