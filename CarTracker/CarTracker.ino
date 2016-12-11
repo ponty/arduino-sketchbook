@@ -127,10 +127,10 @@ void setup()
     fona.setGPRSNetworkSettings(F(APN));
 
 #ifdef SIM_PIN  
-    while (! fona.unlockSIM(SIM_PIN))
+    if (! fona.unlockSIM(SIM_PIN))
     {
         console.println(F("Unlock Failed"));
-        delay(1000);
+        HALT();
     }
     console.println(F("Unlock  OK!"));
 #endif
