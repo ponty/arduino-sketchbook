@@ -127,10 +127,10 @@ void setup()
     fona.setGPRSNetworkSettings(F(APN));
 
 #ifdef SIM_PIN  
-    while (! fona.unlockSIM(SIM_PIN))
+    if (! fona.unlockSIM(SIM_PIN))
     {
         console.println(F("Unlock Failed"));
-        delay(1000);
+        HALT();
     }
     console.println(F("Unlock  OK!"));
 #endif
@@ -413,10 +413,24 @@ boolean HTTP_para_url() {
     fonaSS.print(motion);
     
     fonaSS.print(F("&lat="));
-    fonaSS.print(latitude_mdeg);
+    fonaSS.print(latitude_mdeg / 1000000);
+    fonaSS.print(F("."));
+    fonaSS.print(latitude_mdeg / 100000 % 10);
+    fonaSS.print(latitude_mdeg / 10000  % 10);
+    fonaSS.print(latitude_mdeg / 1000   % 10);
+    fonaSS.print(latitude_mdeg / 100    % 10);
+    fonaSS.print(latitude_mdeg / 10     % 10);
+    fonaSS.print(latitude_mdeg / 1      % 10);
 
     fonaSS.print(F("&lon="));
-    fonaSS.print(longitude_mdeg);
+    fonaSS.print(longitude_mdeg / 1000000);
+    fonaSS.print(F("."));
+    fonaSS.print(longitude_mdeg / 100000 % 10);
+    fonaSS.print(longitude_mdeg / 10000  % 10);
+    fonaSS.print(longitude_mdeg / 1000   % 10);
+    fonaSS.print(longitude_mdeg / 100    % 10);
+    fonaSS.print(longitude_mdeg / 10     % 10);
+    fonaSS.print(longitude_mdeg / 1      % 10);
 
     fonaSS.print(F("&hdop="));
     fonaSS.print(hdop);
