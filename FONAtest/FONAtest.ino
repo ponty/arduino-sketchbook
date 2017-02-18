@@ -17,7 +17,11 @@
   BSD license, all text above must be included in any redistribution
  ****************************************************/
 
+// voda
 #define		APN 		"internet.vodafone.net"
+
+// blue
+#define     APN         "internet"
 
 /*
 THIS CODE IS STILL IN PROGRESS!
