@@ -231,7 +231,7 @@ void loop()
             console.print(c);
             nmea.process(c);
         }
-        if(nmea.getHDOP()<255)
+        if(nmea.getHDOP()<255 && nmea.getSpeed()!=LONG_MIN)
             break;
     }
     console.println();
@@ -287,9 +287,19 @@ void loop()
 //            console.println(F("not available"));
         
         speed = nmea.getSpeed();
-        console.print(F("Speed: "));
+        console.print(F("Speed (mKnots): "));
         console.println(speed);
-
+        
+        if(speed==LONG_MIN)
+        {
+            speed = -1;
+        }
+        else
+        {
+            // 1 Knots -> 1.85 km/h
+            // 1000 / 1.85 = 541
+            speed /= 541;
+        }
     }
     else
     {
