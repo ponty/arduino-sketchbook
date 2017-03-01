@@ -3,19 +3,19 @@
 #include "I2Cdev.h"
 #include "MPU6050.h"
 
-#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+//#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
 #include "Wire.h"
-#endif
+//#endif
 
 MPU6050 mpu;
 
 void setup()
 {
-#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+//#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     Wire.begin();
-#elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-    Fastwire::setup(400, true);
-#endif
+//#elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+//    Fastwire::setup(400, true);
+//#endif
 
     Serial.begin(115200);
 

@@ -35,7 +35,16 @@ MPU6050 mpu;
 // ===               INTERRUPT DETECTION ROUTINE                ===
 // ================================================================
 
+/*
+Board                                       Digital Pins Usable For Interrupts
+===============================================================================
+Uno, Nano, Mini, other 328-based            2, 3
+Mega, Mega2560, MegaADK                     2, 3, 18, 19, 20, 21
+Micro, Leonardo, other 32u4-based           0, 1, 2, 3, 7
+ */
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
+
+
 uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
 
 volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
