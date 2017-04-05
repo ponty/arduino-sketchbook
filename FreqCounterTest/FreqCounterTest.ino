@@ -1,8 +1,10 @@
 #include <FreqCounter.h>
 #include <util/delay.h>     /* for _delay_ms() */
 
+// pin D5
+
 void setup() {
-  Serial.begin(19200);                    // connect to the serial port
+  Serial.begin(9600);                    // connect to the serial port
   Serial.println("Frequency Counter");
   
   pinMode(5, OUTPUT);
@@ -26,18 +28,18 @@ void loop() {
  float f=1.25*FreqCounter::f_freq;            // read result
  Serial.print(" f="); Serial.print(f);   
 
- Serial.print(" f_freq=");Serial.print(FreqCounter::f_freq);                // print result
- Serial.print(" f_debug=");Serial.print(FreqCounter::f_debug);                // print result
- Serial.print(" f_tics=");Serial.print(FreqCounter::f_tics);                // print result
- Serial.print(" f_period=");Serial.print(FreqCounter::f_period);                // print result
- Serial.print(" f_mlt=");Serial.print(FreqCounter::f_mlt);                // print result
- Serial.print(" f_comp=");Serial.print(FreqCounter::f_comp);                // print result
- Serial.print(" TCNT1=");Serial.print(TCNT1);                // print result
- Serial.print(" TCCR1A=");Serial.print(TCCR1A);                // print result
- Serial.print(" TCCR1B=");Serial.print(TCCR1B);                // print result
- Serial.print(" TCCR2A=");Serial.print(TCCR2A);                // print result
- Serial.print(" TCCR2B=");Serial.print(TCCR2B);                // print result
- Serial.println();                // print result
+ Serial.print(" f_freq=");Serial.print(FreqCounter::f_freq);                
+ Serial.print(" f_debug=");Serial.print(FreqCounter::f_debug);                
+ Serial.print(" f_tics=");Serial.print(FreqCounter::f_tics);                
+ Serial.print(" f_period=");Serial.print(FreqCounter::f_period);                
+ Serial.print(" f_mlt=");Serial.print(FreqCounter::f_mlt);                
+ Serial.print(" f_comp=");Serial.print(FreqCounter::f_comp);                
+ Serial.print(" TCNT1=");Serial.print(TCNT1);                
+ Serial.print(" TCCR1A=");Serial.print(TCCR1A);                
+ Serial.print(" TCCR1B=");Serial.print(TCCR1B);                
+ Serial.print(" TCCR2A=");Serial.print(TCCR2A);                
+ Serial.print(" TCCR2B=");Serial.print(TCCR2B);                
+ Serial.println();                
  
  //delay(10000);
   _delay_ms(1000);
