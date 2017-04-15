@@ -3,6 +3,9 @@
  *
  * This example code is in the public domain.
  */
+
+// pin D5
+
 #include <FreqCount.h>
 
 void setup() {
