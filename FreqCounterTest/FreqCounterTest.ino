@@ -1,6 +1,8 @@
 #include <FreqCounter.h>
 #include <util/delay.h>     /* for _delay_ms() */
 
+// FreqCount is better!
+
 // pin D5
 
 void setup() {
