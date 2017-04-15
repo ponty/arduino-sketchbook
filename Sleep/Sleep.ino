@@ -13,15 +13,26 @@ void setup() {
   Serial.println();
 }
 
+  unsigned long time;
+
 void loop() {
-  Serial.println("delay");
-  delay(2000);
+  time = millis();
+  Serial.println("delay 5000");
+  delay(5000);
+  Serial.print("millis change:");
+  Serial.println(millis()-time);
   
-  //Serial.println("sleep");
-  int sleepMS = Watchdog.sleep(2000);
+  Serial.println("sleep 5000");
+  time = millis();
+  delay(10);
+  int sleepMS = Watchdog.sleep(5000);
 
   Serial.print("I'm awake now!  I slept for ");
   Serial.print(sleepMS, DEC);
   Serial.println(" milliseconds.");
-  Serial.println();
+  Serial.print("millis change:");
+  Serial.println(millis()-time);
+
+  
+  Serial.println("-------------------");
 }
