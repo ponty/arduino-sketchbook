@@ -16,22 +16,24 @@ private:
 
     uint8_t scratchpad[9];
 
-    void setTemperatureRaw(const int16_t value_raw);
     void updateCRC(void);
 
     bool ds18s20_mode;
 
 public:
 
-    static constexpr uint8_t family_code = 0x28; // is compatible to ds1822 (0x22) and ds18S20 (0x10)
+    static constexpr uint8_t family_code { 0x28 }; // is compatible to ds1822 (0x22) and ds18S20 (0x10)
 
     DS18B20(uint8_t ID1, uint8_t ID2, uint8_t ID3, uint8_t ID4, uint8_t ID5, uint8_t ID6, uint8_t ID7);
 
-    void duty(OneWireHub * const hub);
+    void duty(OneWireHub * hub) final;
 
-    void setTemperature(const float value_degC);  // -55 to +125 degC
-    void setTemperature(const int8_t value_degC); // -55 to +125 degC
-    int  getTemperature(void) const;
+    void setTemperature(float value_degC);  // -55 to +125 degC
+    void setTemperature(int8_t value_degC); // -55 to +125 degC
+    int  getTemperature() const;
+
+    void    setTemperatureRaw(int16_t value_raw);
+    int16_t getTemperatureRaw() const;
 
 };
 

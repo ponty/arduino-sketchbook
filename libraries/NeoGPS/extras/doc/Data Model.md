@@ -28,7 +28,7 @@ gps_fix fix;
         * `fix.longitudeDMS.EW()` (char values `E` or `W`)
         * `fix.latitudeDMS.NS()` (char values `N` or `S`)
       * NOTE: An integer degree value (scaled by 10<sup>7</sup> can be used to set the DMS structure by using `fix.latitudeDMS.From( otherLatitude );`
-  * an altitude (above ellipsoid, not Mean Sea Level), accessed with
+  * an altitude (above ellipsoid, aka Mean Sea Level), accessed with
     * `fix.altitude_cm()`, in integer centimeters
     * `fix.altitude()`, in floating-point meters
     * `fix.alt.whole`, in integer meters
@@ -43,10 +43,22 @@ gps_fix fix;
   * a heading, accessed with
     * `fix.heading_cd()`, in integer hundredths of a degree
     * `fix.heading()`, in floating-point degrees
-  * `fix.hdop`, `fix.vdop` and `fix.pdop`, in integer thousandths of the DOP
+  * velocity components in the North, East and Down directions, accessed with
+    * `fix.velocity_north`, in integer cm/s
+    * `fix.velocity_east`, in integer cm/s
+    * `fix.velocity_down`, in integer cm/s
+  * `fix.hdop`, `fix.vdop` and `fix.pdop`, in integer thousandths of the DOP.
+    * [Dilution of Precision](https://en.wikipedia.org/wiki/Dilution_of_precision_(navigation)) is a unitless measure of the current satellite constellation geometry WRT how 'good' it is for determining a position.  This is _independent_ of signal strength and many other factors that may be internal to the receiver. &nbsp;&nbsp;**It cannot be used to determine position accuracy in meters.**  Instead, use the LAT/LON/ALT error in cm members, which are populated by GST sentences.
   * latitude, longitude and altitude error, accessed with
     * `fix.lat_err_cm`, `fix.lon_err_cm` and `fix.alt_err_cm`, in integer centimeters
     * `fix.lat_err()`, `fix.lon_err()` and `fix.alt_err()`, in floating-point meters
+  * speed, heading and time **errors**, accessed with
+    * `fix.spd_err_mmps`, in integer mm/s
+    * `fix.hdg_errE5`, in integer degrees * 100000
+    * `fix.time_err_ns`, in integer nanoseconds<br>**or with**
+    * `fix.spd_err()` in floating-point m/s
+    * `fix.hdg_err()` in floating-point degrees
+    * `fix.time_err()` in floating-point seconds
   * geoid height above ellipsoid (see [here](https://en.wikipedia.org/wiki/Geoid) for description), accessed with
     * `fix.geoidHeight_cm`, in integer centimeters
     * `fix.geoidHeight()`, in floating-point meters
@@ -64,6 +76,8 @@ gps_fix fix;
     `Time` operations allow converting to and from total seconds offset from a *de facto* starting time (e.g., an epoch date/time "origin").  There are constants in Time.h for NTP, POSIX and Y2K epochs.  Simply change the `static` members `s_epoch_year` and `s_epoch_weekday` in Time.h, and all date/time operations will be based on that epoch.  This does not affect GPS times, but it will allow you to easily convert a GPS time to/from an NTP or POSIX time value (seconds).<br><br>
     The [NMEAtimezone.ino](/examples/NMEAtimezone/NMEAtimezone.ino) example program shows how to convert the GPS time (UTC) into a local time.  Basically, a `Time` structure is converted to seconds (from the epoch start), then the time zone offset *in seconds* is added, and then the offset seconds are converted back to a time structure, with corrected day, month, year, hours and minutes members.
   * `fix.dateTime_cs`, in integer hundredths of a second
+    * `fix.dateTime_ms()`, in milliseconds
+    * `fix.dateTime_us()`, in microseconds
   * a collection of boolean `valid` flags for each of the above members, accessed with
     * `fix.valid.status`
     * `fix.valid.date` for year, month, day-of-month
@@ -72,11 +86,11 @@ gps_fix fix;
     * `fix.valid.altitude`
     * `fix.valid.speed`
     * `fix.valid.heading`
-    * `fix.valid.hdop`, `fix.valid.vdop` and `fix.valid.hpop`
+    * `fix.valid.hdop`, `fix.valid.vdop` and `fix.valid.pdop`
     * `fix.valid.lat_err`, `fix.valid.lon_err` and `fix.valid.alt_err`
     * `fix.valid.geoidHeight`
 
-##Validity
+## Validity
 Because the GPS device may *not* have a fix, each member of a `gps_fix` can be marked as valid or invalid.  That is, the GPS device may not know the lat/long yet.  To check whether the  fix member has been received, test the corresponding `valid` flag (described above).  For example, to check if lat/long data has been received:
 ```
   if (my_fix.valid.location) {
@@ -87,9 +101,12 @@ Because the GPS device may *not* have a fix, each member of a `gps_fix` can be m
 ```
 You should also know that, even though you have enabled a particular member (see [GPSfix_cfg.h](/src/GPSfix_cfg.h)), it **may not have a value** until the related NMEA sentence sets it.  And if you have not enabled that sentence for parsing in `NMEAGPS_cfg.h`, it will **never** be valid.
 
-##Other GPS-related information
+## Other GPS-related information
 There is additional information that is not related to a fix.  Instead, it contains information about parsing or a [**G**lobal **N**avigation **S**atellite **S**ystem](https://en.wikipedia.org/wiki/Satellite_navigation).   GNSS's currently include GPS (US), GLONASS (Russia), Beidou (China) and Galileo (EU). The main `NMEAGPS gps` object you declare in your sketch contains:
-  * `gps.nmeaMessage`, the latest received message type
+  * `gps.UTCsecondStart()`, the Arduino `micros()` value when the current UTC second started
+  * `gps.UTCms()`, the number of milliseconds since the last received UTC time, calculated from `micros()` and `gps.UTCsecondStart`.
+  * `gps.UTCus()`, the number of microseconds since the last received UTC time, calculated from `micros()` and `gps.UTCsecondStart`.
+  * `gps.nmeaMessage`, the latest received message type.  This is an ephemeral value, because multiple sentences are merged into one `fix` structure.  If you only check this after a complete fix is received, you will only see the LAST_SENTENCE_IN_INTERVAL.
     * enum values NMEA_GLL, NMEA_GSA, NMEA_GST, NMEA_GSV, NMEA_RMC, NMEA_VTG or NMEA_ZDA
   * `gps.satellies[]`, an array of satellite-specific information, where each element contains
     * `gps.satellies[i].id`, satellite ID
@@ -97,11 +114,12 @@ There is additional information that is not related to a fix.  Instead, it conta
     * `gps.satellies[i].azimuth`, satellite azimuth in 0-359 integer degrees
     * `gps.satellies[i].snr`, satellite signal-to-noise ratio in 0-99 integer dBHz
     * `gps.satellies[i].tracked`, satellite being tracked flag, a boolean
+  * `gps.sat_count`, the number of elements in the `gps.satellites[]` array
   * `gps.talker_id[]`, talker ID, a two-character array (not NUL-terminated)
   * `gps.mfr_id[]`, manufacturer ID, a three-character array (not NUL-terminated)
   * an internal fix structure,  `gps.fix()`.  Most sketches **should not** use `gps.fix()` directly!
 
-##Usage
+## Usage
 First, declare an instance of `NMEAGPS`:
 ```
 NMEAGPS gps;
@@ -160,7 +178,7 @@ However, the fix-oriented methods operate on complete *fixes*, not individual ch
 
 Note: If you find that you need to filter or merge data with a finer level of control,  you may need to use a different [Merging option](Merging.md), [Coherency](Coherency.md), or the more-advanced [Character-Oriented methods](/doc/CharOriented.md).  
 
-##Examples
+## Examples
 Some examples of accessing fix values:
 ```
 gps_fix fix_copy = gps.read();
@@ -222,10 +240,10 @@ Bonus: The compiler will optimize this into a single bit mask operation.
 
 The example printing utility file, [Streamers.cpp](/src/Streamers.cpp#L100) shows how to access each fix member and print its value.
 
-##Options
+## Options
 Except for `status`, each of these `gps_fix` members is conditionally compiled; any, all, or *no* members can be selected for parsing, storing and merging.  This allows you to configuring NeoGPS to use the minimum amount of RAM for the particular members of interest.  See [Configurations](Configurations.md) for how to edit [GPSfix_cfg.h](/src/GPSfix_cfg.h) and [NMEAGPS_cfg.h](/src/NMEAGPS_cfg.h#L67), respectively.
 
-##Precision
+## Precision
 Integers are used for all members, retaining full precision of the original data.
 ```
     gps_fix fix = gps.read();

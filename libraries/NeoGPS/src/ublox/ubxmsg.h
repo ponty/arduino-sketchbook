@@ -1,6 +1,23 @@
 #ifndef UBXMSG_H
 #define UBXMSG_H
 
+//  Copyright (C) 2014-2017, SlashDevin
+//
+//  This file is part of NeoGPS
+//
+//  NeoGPS is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  NeoGPS is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with NeoGPS.  If not, see <http://www.gnu.org/licenses/>.
+
 #include "NMEAGPS_cfg.h"
 
 // Disable the entire file if derived types are not allowed.
@@ -20,7 +37,9 @@ namespace ublox {
         UBX_MON  = 0x0A,  // Monitoring messages
         UBX_AID  = 0x0B,  // Assist Now aiding messages
         UBX_TIM  = 0x0D,  // Timing messages
+        UBX_HNR  = 0x28,  // High rate navigation results
         UBX_NMEA = 0xF0,  // NMEA Standard messages
+        UBX_PUBX = 0xF1,  // NMEA proprietary messages (PUBX)
         UBX_UNK  = 0xFF
       }  __attribute__((packed));
 
@@ -38,11 +57,13 @@ namespace ublox {
         UBX_NAV_STATUS   = 0x03, // Receiver Navigation Status
         UBX_NAV_DOP      = 0x04, // Dilutions of Precision
         UBX_NAV_ODO      = 0x09, // Odometer Solution (NEO-M8 only)
+        UBX_NAV_PVT      = 0x07, // Position, Velocity and Time
         UBX_NAV_RESETODO = 0x10, // Reset Odometer (NEO-M8 only)
         UBX_NAV_VELNED   = 0x12, // Current Velocity
         UBX_NAV_TIMEGPS  = 0x20, // Current GPS Time
         UBX_NAV_TIMEUTC  = 0x21, // Current UTC Time
         UBX_NAV_SVINFO   = 0x30, // Space Vehicle Information
+        UBX_HNR_PVT      = 0x00, // High rate Position, Velocity and Time
         UBX_ID_UNK   = 0xFF
       }  __attribute__((packed));
 
@@ -54,7 +75,7 @@ namespace ublox {
       }  __attribute__((packed));
 
       struct msg_t : msg_hdr_t {
-          uint16_t length;  // should be sizeof(this)-sizeof(msg+hdr_t)
+          uint16_t length;  // should be sizeof(this)-sizeof(msg_hdr_t)
           #define UBX_MSG_LEN(msg) (sizeof(msg) - sizeof(ublox::msg_t))
 
           msg_t()
@@ -263,20 +284,13 @@ namespace ublox {
         } __attribute__((packed))
           flags;
         
-        static gps_fix::status_t to_status( enum status_t status, flags_t flags )
+        static gps_fix::status_t to_status( enum gps_fix::status_t status, flags_t flags )
         {
           if (!flags.gps_fix)
             return gps_fix::STATUS_NONE;
           if (flags.diff_soln)
             return gps_fix::STATUS_DGPS;
-          switch (status) {
-            case NAV_STAT_DR_ONLY  : return gps_fix::STATUS_EST;
-            case NAV_STAT_2D       :
-            case NAV_STAT_3D       :
-            case NAV_STAT_GPS_DR   : return gps_fix::STATUS_STD;
-            case NAV_STAT_TIME_ONLY: return gps_fix::STATUS_TIME_ONLY;
-            default                : return gps_fix::STATUS_NONE;
-          }
+          return status;
         }
         
         struct {
@@ -332,6 +346,86 @@ namespace ublox {
         // no payload, it's just a command
 
         nav_resetodo_t() : msg_t( UBX_NAV, UBX_NAV_RESETODO, UBX_MSG_LEN(*this) ) {};
+    }  __attribute__((packed));
+
+    // Position, Velocity and Time (NEO-7 or later)
+    struct nav_pvt_t : msg_t {
+        uint32_t time_of_week; // mS
+        uint16_t year;           // 1999..2099
+        uint8_t  month;          // 1..12
+        uint8_t  day;            // 1..31
+        uint8_t  hour;           // 0..23
+        uint8_t  minute;         // 0..59
+        uint8_t  second;         // 0..59
+        struct valid_t {
+          bool date          :1;
+          bool time          :1;
+          bool fully_resolved:1;
+        } __attribute__((packed))
+          valid;
+        uint32_t time_acc;               // ns
+        int32_t  second_frac;            // ns
+        enum fix_t {
+          UBX_NAV_PVT_FIX_NONE           = 0,
+          UBX_NAV_PVT_FIX_DEAD_RECKONING = 1,
+          UBX_NAV_PVT_FIX_2D             = 2,
+          UBX_NAV_PVT_FIX_3D             = 3,
+          UBX_NAV_PVT_FIX_GNSS_PLUS_DR   = 4,
+          UBX_NAV_PVT_FIX_TIME           = 5
+        } __attribute__((packed))
+          status;
+        struct flags_t {
+          bool    validFix      :1;
+          bool    dgps          :1;
+          uint8_t psmState      :3;
+        } __attribute__((packed))
+          flags;
+        uint8_t  reserved1;
+        uint8_t  satellites;
+        int32_t  lon;                    // deg * 1e7
+        int32_t  lat;                    // deg * 1e7
+        int32_t  height_above_ellipsoid; // mm
+        int32_t  height_MSL;             // mm
+        uint32_t horiz_acc;              // mm
+        uint32_t vert_acc;               // mm
+        int32_t  vel_north;              // cm/s
+        int32_t  vel_east;               // cm/s
+        int32_t  vel_down;               // cm/s
+        uint32_t speed_2D;               // cm/s
+        int32_t  heading;                // deg * 1e5
+        uint32_t speed_acc;              // mm/s
+        uint32_t heading_acc;            // deg * 1e5
+        uint16_t pdop;                   // DOP * 100
+        uint16_t reserved2;
+        uint32_t reserved3;
+
+        nav_pvt_t() : msg_t( UBX_NAV, UBX_NAV_PVT, UBX_MSG_LEN(*this) ) {};
+
+        static gps_fix::status_t to_status( enum gps_fix::status_t status, fix_t pvt_status )
+        {
+          switch (pvt_status) {
+            case UBX_NAV_PVT_FIX_NONE          :
+              status = gps_fix::STATUS_NONE;
+              break;
+            case UBX_NAV_PVT_FIX_DEAD_RECKONING:
+              status = gps_fix::STATUS_EST;
+              break;
+            case UBX_NAV_PVT_FIX_2D            :
+              status = gps_fix::STATUS_STD;
+              break;
+            case UBX_NAV_PVT_FIX_3D            :
+              status = gps_fix::STATUS_STD;
+              break;
+            case UBX_NAV_PVT_FIX_GNSS_PLUS_DR  :
+              status = gps_fix::STATUS_STD;
+              break;
+            case UBX_NAV_PVT_FIX_TIME          :
+              status = gps_fix::STATUS_TIME_ONLY;
+              break;
+          }
+          return status;
+        }
+
     }  __attribute__((packed));
 
     // Velocity Solution in North/East/Down
@@ -434,6 +528,65 @@ namespace ublox {
         }
 
       }  __attribute__((packed));
+
+    // High Rate PVT
+    struct hnr_pvt_t : msg_t {
+        uint32_t time_of_week;   // mS
+        uint16_t year;           // 1999..2099
+        uint8_t  month;          // 1..12
+        uint8_t  day;            // 1..31
+        uint8_t  hour;           // 0..23
+        uint8_t  minute;         // 0..59
+        uint8_t  second;         // 0..59
+        struct valid_t {
+            bool date:1;
+            bool time:1;
+            bool fully_resolved:1;
+        } __attribute__((packed))
+        valid;
+        int32_t  fractional_ToW; // nS
+
+        nav_status_t::status_t status;
+
+        struct flags_t {
+            bool gps_fix:1;
+            bool diff_soln:1;
+            bool week:1;
+            bool time_of_week:1;
+            bool heading_valid:1;
+        } __attribute__((packed))
+        flags;
+
+        static gps_fix::status_t to_status( enum gps_fix::status_t status, flags_t flags )
+        {
+            if (!flags.gps_fix)
+              return gps_fix::STATUS_NONE;
+            if (flags.diff_soln)
+              return gps_fix::STATUS_DGPS;
+            return status;
+        }
+
+        uint16_t reserved1;
+
+        int32_t  lon; // deg * 1e7
+        int32_t  lat; // deg * 1e7
+        int32_t  height_above_ellipsoid; // mm
+        int32_t  height_MSL; // mm
+
+        int32_t  speed_2D;        // mm/s
+        int32_t  speed_3D;        // mm/s
+        int32_t  heading_motion;  // degrees * 1e5
+        int32_t  heading_vehicle; // degrees * 1e5
+
+        uint32_t horiz_acc;   // mm
+        uint32_t vert_acc;    // mm
+        uint32_t speed_acc;   // mm/s
+        uint32_t heading_acc; // degrees * 1e5
+
+        uint32_t reserved4;
+
+        hnr_pvt_t() : msg_t( UBX_HNR, UBX_HNR_PVT, UBX_MSG_LEN(*this) ) {};
+    } __attribute__((packed));
 
     struct cfg_nmea_t : msg_t {
         bool  always_output_pos  :1; // invalid or failed

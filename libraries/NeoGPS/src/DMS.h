@@ -1,26 +1,26 @@
 #ifndef DMS_H
 #define DMS_H
 
-//------------------------------------------------------
-// @file DMS.h
-// @version 1.0
+//  Copyright (C) 2014-2017, SlashDevin
 //
-// @section License
-// Copyright (C) 2016, SlashDevin
+//  This file is part of NeoGPS
 //
-// This library is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 2.1 of the License, or (at your option) any later version.
+//  NeoGPS is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
 //
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// Lesser General Public License for more details.
+//  NeoGPS is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
 //
+//  You should have received a copy of the GNU General Public License
+//  along with NeoGPS.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "NeoGPS_cfg.h"
 #include <stdint.h>
+class Print;
 
 enum Hemisphere_t { NORTH_H = 0, SOUTH_H = 1, EAST_H = 0, WEST_H = 1 };
 
@@ -44,10 +44,11 @@ public:
   // A utility function to convert from integer 'lat' or 'lon', scaled by 10^7
 
   void  From( int32_t deg_1E7 );
-    
-} NEOGPS_PACKED;
 
-class Print;
+  // Print DMS as the funky NMEA DDDMM.mmmm format
+  void printDDDMMmmmm( Print & outs ) const;
+
+} NEOGPS_PACKED;
 
 extern Print & operator << ( Print & outs, const DMS_t & );
 

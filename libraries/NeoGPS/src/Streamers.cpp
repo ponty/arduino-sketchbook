@@ -1,3 +1,20 @@
+//  Copyright (C) 2014-2017, SlashDevin
+//
+//  This file is part of NeoGPS
+//
+//  NeoGPS is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  NeoGPS is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with NeoGPS.  If not, see <http://www.gnu.org/licenses/>.
+
 #include "Streamers.h"
 #include "NMEAGPS.h"
 
@@ -60,6 +77,10 @@ const char gps_fix_header[] __PROGMEM =
     "Spd,"
   #endif
 
+  #ifdef GPS_FIX_VELNED
+    "Vel N,E,D,"
+  #endif
+
   #if defined(GPS_FIX_ALTITUDE)
     "Alt,"
   #endif
@@ -86,6 +107,18 @@ const char gps_fix_header[] __PROGMEM =
 
   #if defined(GPS_FIX_ALT_ERR)
     "Alt err,"
+  #endif
+
+  #if defined(GPS_FIX_SPD_ERR)
+    "Spd err,"
+  #endif
+
+  #if defined(GPS_FIX_HDG_ERR)
+    "Hdg err,"
+  #endif
+
+  #if defined(GPS_FIX_TIME_ERR)
+    "Time err,"
   #endif
 
   #if defined(GPS_FIX_GEOID_HEIGHT)
@@ -150,9 +183,12 @@ Print & operator <<( Print &outs, const gps_fix &fix )
 
     if (someTime) {
       outs << fix.dateTime << '.';
-      if (fix.dateTime_cs < 10)
+      uint16_t ms = fix.dateTime_ms();
+      if (ms < 100)
         outs << '0';
-      outs << fix.dateTime_cs;
+      if (ms < 10)
+        outs << '0';
+      outs << ms;
     }
     outs << ',';
 
@@ -196,6 +232,17 @@ Print & operator <<( Print &outs, const gps_fix &fix )
         outs.print( fix.speed(), 3 ); // knots
       outs << ',';
     #endif
+    #ifdef GPS_FIX_VELNED
+      if (fix.valid.velned)
+        outs.print( fix.velocity_north ); // cm/s
+      outs << ',';
+      if (fix.valid.velned)
+        outs.print( fix.velocity_east  ); // cm/s
+      outs << ',';
+      if (fix.valid.velned)
+        outs.print( fix.velocity_down  ); // cm/s
+      outs << ',';
+    #endif
     #ifdef GPS_FIX_ALTITUDE
       if (fix.valid.altitude)
         outs.print( fix.altitude(), 2 );
@@ -231,6 +278,21 @@ Print & operator <<( Print &outs, const gps_fix &fix )
     #ifdef GPS_FIX_ALT_ERR
       if (fix.valid.alt_err)
         outs.print( fix.alt_err(), 2 );
+      outs << ',';
+    #endif
+    #ifdef GPS_FIX_SPD_ERR
+      if (fix.valid.spd_err)
+        outs.print( fix.spd_err(), 2 );
+      outs << ',';
+    #endif
+    #ifdef GPS_FIX_HDG_ERR
+      if (fix.valid.hdg_err)
+        outs.print( fix.hdg_err(), 2 );
+      outs << ',';
+    #endif
+    #ifdef GPS_FIX_TIME_ERR
+      if (fix.valid.time_err)
+        outs.print( fix.time_err(), 2 );
       outs << ',';
     #endif
 
@@ -273,6 +335,17 @@ Print & operator <<( Print &outs, const gps_fix &fix )
         outs << fix.speed_mkn();
       outs << ',';
     #endif
+    #ifdef GPS_FIX_VELNED
+      if (fix.valid.velned)
+        outs.print( fix.velocity_north ); // cm/s
+      outs << ',';
+      if (fix.valid.velned)
+        outs.print( fix.velocity_east  ); // cm/s
+      outs << ',';
+      if (fix.valid.velned)
+        outs.print( fix.velocity_down  ); // cm/s
+      outs << ',';
+    #endif
     #ifdef GPS_FIX_ALTITUDE
       if (fix.valid.altitude)
         outs << fix.altitude_cm();
@@ -310,6 +383,21 @@ Print & operator <<( Print &outs, const gps_fix &fix )
         outs << fix.alt_err_cm;
       outs << ',';
     #endif
+    #ifdef GPS_FIX_SPD_ERR
+      if (fix.valid.spd_err)
+        outs.print( fix.spd_err_mmps );
+      outs << ',';
+    #endif
+    #ifdef GPS_FIX_HDG_ERR
+      if (fix.valid.hdg_err)
+        outs.print( fix.hdg_errE5 );
+      outs << ',';
+    #endif
+    #ifdef GPS_FIX_TIME_ERR
+      if (fix.valid.time_err)
+        outs.print( fix.time_err_ns );
+      outs << ',';
+    #endif
 
     #ifdef GPS_FIX_GEOID_HEIGHT
       if (fix.valid.geoidHeight)
@@ -331,6 +419,10 @@ Print & operator <<( Print &outs, const gps_fix &fix )
 //-----------------------------
 
 static const char NMEAGPS_header[] __PROGMEM =
+  #if defined(NMEAGPS_TIMESTAMP_FROM_INTERVAL) | defined(NMEAGPS_TIMESTAMP_FROM_PPS)
+    "micros(),"
+  #endif
+
   #if defined(NMEAGPS_PARSE_SATELLITES)
     "[sat"
     #if defined(NMEAGPS_PARSE_SATELLITE_INFO)
@@ -358,6 +450,11 @@ void trace_header( Print & outs )
 void trace_all( Print & outs, const NMEAGPS &gps, const gps_fix &fix )
 {
   outs << fix;
+
+  #if defined(NMEAGPS_TIMESTAMP_FROM_INTERVAL) | defined(NMEAGPS_TIMESTAMP_FROM_PPS)
+    outs << gps.UTCsecondStart();
+    outs << ',';
+  #endif
 
   #if defined(NMEAGPS_PARSE_SATELLITES)
     outs << '[';

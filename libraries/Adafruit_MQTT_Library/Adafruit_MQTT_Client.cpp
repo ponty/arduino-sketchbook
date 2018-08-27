@@ -53,6 +53,7 @@ uint16_t Adafruit_MQTT_Client::readPacket(uint8_t *buffer, uint16_t maxlen,
   uint16_t len = 0;
   int16_t t = timeout;
 
+
   while (client->connected() && (timeout >= 0)) {
     //DEBUG_PRINT('.');
     while (client->available()) {
@@ -62,6 +63,11 @@ uint16_t Adafruit_MQTT_Client::readPacket(uint8_t *buffer, uint16_t maxlen,
       buffer[len] = c;
       //DEBUG_PRINTLN((uint8_t)c, HEX);
       len++;
+
+      if (maxlen == 0) { // handle zero-length packets
+        return 0;
+      }
+
       if (len == maxlen) {  // we read all we want, bail
         DEBUG_PRINT(F("Read data:\t"));
         DEBUG_PRINTBUFFER(buffer, len);
@@ -81,7 +87,7 @@ bool Adafruit_MQTT_Client::sendPacket(uint8_t *buffer, uint16_t len) {
     if (client->connected()) {
       // send 250 bytes at most at a time, can adjust this later based on Client
 
-      uint16_t sendlen = min(len, 250);
+      uint16_t sendlen = len > 250 ? 250 : len;
       //Serial.print("Sending: "); Serial.println(sendlen);
       ret = client->write(buffer, sendlen);
       DEBUG_PRINT(F("Client sendPacket returned: ")); DEBUG_PRINTLN(ret);

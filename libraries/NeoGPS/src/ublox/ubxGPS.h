@@ -1,23 +1,22 @@
 #ifndef _UBXGPS_H_
 #define _UBXGPS_H_
 
-/**
- * @file UBXGPS.h
- * @version 2.1
- *
- * @section License
- * Copyright (C) 2014, SlashDevin
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- */
+//  Copyright (C) 2014-2017, SlashDevin
+//
+//  This file is part of NeoGPS
+//
+//  NeoGPS is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  NeoGPS is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with NeoGPS.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "NMEAGPS_cfg.h"
 // Disable the entire file if derived types are not allowed.
@@ -28,16 +27,27 @@
 #include "GPSTime.h"
 #include "ublox/ubx_cfg.h"
 
-#include <Stream.h>
-#include <stddef.h>
+#if !defined(UBLOX_PARSE_STATUS)  & !defined(UBLOX_PARSE_TIMEGPS) & \
+    !defined(UBLOX_PARSE_TIMEUTC) & !defined(UBLOX_PARSE_POSLLH)  & \
+    !defined(UBLOX_PARSE_DOP)     & !defined(UBLOX_PARSE_PVT)     & \
+    !defined(UBLOX_PARSE_VELNED)  & !defined(UBLOX_PARSE_SVINFO)  & \
+    !defined(UBLOX_PARSE_HNR_PVT)
 
-// NOTE: millis() is used for ACK timing
+  #warning No UBX binary messages enabled: ubloxGPS class not defined.
+
+#else
+
+  #include <Stream.h>
+  #include <stddef.h>
+
+  // NOTE: millis() is used for ACK timing
 
 
-class ubloxGPS : public ubloxNMEA
+class ubloxGPS : public UBLOXGPS_BASE
 {
     ubloxGPS & operator =( const ubloxGPS & );
     ubloxGPS( const ubloxGPS & );
+    ubloxGPS();
 
 public:
 
@@ -53,7 +63,7 @@ public:
 
     // ublox binary UBX message type.
     enum ubx_msg_t {
-        UBX_MSG = PUBX_LAST_MSG+1
+        UBX_MSG = UBLOXGPS_BASE_LAST_MSG+1
     };
     static const nmea_msg_t UBX_FIRST_MSG = (nmea_msg_t) UBX_MSG;
     static const nmea_msg_t UBX_LAST_MSG  = (nmea_msg_t) UBX_MSG;
@@ -229,11 +239,12 @@ protected:
 
     virtual bool intervalCompleted() const
       {
-        return ((nmeaMessage == UBX_MSG) &&
+        return ((nmeaMessage        == (nmea_msg_t) UBX_MSG) &&
                 (m_rx_msg.msg_class == UBX_LAST_MSG_CLASS_IN_INTERVAL) &&
                 (m_rx_msg.msg_id    == UBX_LAST_MSG_ID_IN_INTERVAL))
                         ||
-               NMEAGPS::intervalCompleted();
+               ((nmeaMessage        != (nmea_msg_t) UBX_MSG) &&
+                NMEAGPS::intervalCompleted());
       }
 
 private:
@@ -289,10 +300,13 @@ private:
     bool parseNavStatus ( uint8_t chr );
     bool parseNavDOP    ( uint8_t chr );
     bool parseNavPosLLH ( uint8_t chr );
+    bool parseNavPvt    ( uint8_t chr );
     bool parseNavVelNED ( uint8_t chr );
     bool parseNavTimeGPS( uint8_t chr );
     bool parseNavTimeUTC( uint8_t chr );
     bool parseNavSVInfo ( uint8_t chr );
+
+    bool parseHnrPvt( uint8_t chr );
 
     bool parseFix( uint8_t c );
 
@@ -325,6 +339,8 @@ private:
     }
 
 } NEOGPS_PACKED;
+
+#endif // UBX messages enabled
 
 #endif // NMEAGPS_DERIVED_TYPES enabled
 

@@ -8,13 +8,10 @@
 #include "OneWireItem.h"
 
 //// CONFIG /////////////////////////////////////////////
-static constexpr uint8_t  BAE910_DEVICE_TYPE      = 0x02;  // Type 2 for BAE0910. Type 3 for BAE0911 (planned)
-static constexpr uint8_t  BAE910_CHIP_TYPE        = 0x01;  // Chip type= 0x01 for the MC9S08SH8, 8 pin package soic8
+static constexpr uint8_t  BAE910_DEVICE_TYPE      { 0x02 };  // Type 2 for BAE0910. Type 3 for BAE0911 (planned)
+static constexpr uint8_t  BAE910_CHIP_TYPE        { 0x01 };  // Chip type= 0x01 for the MC9S08SH8, 8 pin package SO-IC 8
 
-static constexpr uint8_t  BAE910_BOOTSTRAP_VER    = 0x01;  // undefined data
-static constexpr uint8_t  BAE910_SW_VER           = 0x01;  // undefined data (0x00 = corrupted)
-
-static constexpr uint8_t  BAE910_SCRATCHPAD_SIZE  = 32;
+static constexpr uint8_t  BAE910_SCRATCHPAD_SIZE  { 32  };
 //// END OF CONFIG //////////////////////////////////////
 
 typedef struct
@@ -83,32 +80,34 @@ typedef struct
     uint8_t  outc;
     uint8_t  cntc;
     uint8_t  adcc;
-    uint16_t reserved;
+    uint8_t  SW_VER; // 0x00 = corrupted
+    uint8_t  BOOTSTRAP_VER;
 } sBAE910;
 
+static constexpr uint8_t  BAE910_MEMORY_SIZE      { sizeof(sBAE910) };
+
 typedef union {
-    uint8_t bytes[0x80];
+    uint8_t bytes[BAE910_MEMORY_SIZE];
     sBAE910 field;
 } mBAE910; // overlay with memory_array
 
 class BAE910 : public OneWireItem
 {
-private:
-
 protected:
 
     uint8_t scratchpad[BAE910_SCRATCHPAD_SIZE];
-    virtual void extCommand(const uint8_t ecmd, const uint8_t payload_len = 0); // read payload from scratchpad
 
 public:
 
+    static constexpr uint8_t family_code              { 0xFC };
+
     mBAE910 memory;
 
-    static constexpr uint8_t family_code              = 0xFC;
+    static_assert(sizeof(memory) < 256,  "Implementation does not cover the whole address-space");
 
     BAE910(uint8_t ID1, uint8_t ID2, uint8_t ID3, uint8_t ID4, uint8_t ID5, uint8_t ID6, uint8_t ID7);
 
-    void duty(OneWireHub * const hub);
+    void duty(OneWireHub * hub) final;
 
     // TODO: can be extended with clearMemory(), writeMemory(), readMemory() similar to ds2506
 };

@@ -5,7 +5,7 @@ DS2450::DS2450(uint8_t ID1, uint8_t ID2, uint8_t ID3, uint8_t ID4, uint8_t ID5, 
 {
     static_assert(sizeof(memory) < 256,  "Implementation does not cover the whole address-space");
     clearMemory();
-};
+}
 
 void DS2450::duty(OneWireHub * const hub)
 {
@@ -18,6 +18,7 @@ void DS2450::duty(OneWireHub * const hub)
     switch (cmd)
     {
         case 0xAA: // READ MEMORY
+
             while(reg_TA < MEM_SIZE)
             {
                 const uint8_t length = PAGE_SIZE - (uint8_t(reg_TA) & PAGE_MASK);
@@ -29,10 +30,11 @@ void DS2450::duty(OneWireHub * const hub)
                 // prepare next page-readout
                 reg_TA += length;
                 crc = 0;
-            };
+            }
             break;
 
         case 0x55: // write memory (only page 1&2 allowed)
+
             while(reg_TA < MEM_SIZE)
             {
                 uint8_t data;
@@ -45,27 +47,32 @@ void DS2450::duty(OneWireHub * const hub)
                 if (reg_TA >= PAGE_SIZE)        memory[reg_TA] = data; // write data, page 0 is off limits
 
                 crc = ++reg_TA; // prepare next address-readout: load new TA into crc
-            };
+            }
             correctMemory();
             break;
 
         case 0x3C: // convert, starts adc
+
             // received reg_TA contains: input select mask (not important) and read out control byte
             // in reality master can now set registers of potentiometers to 0x0000 or 0xFFFF to track changes
             crc = ~crc; // normally crc16 is sent ~inverted
             if (hub->send(reinterpret_cast<uint8_t *>(&crc),2)) return;
             // takes max 5.3 ms for 16 bit ( 4 CH * 16 bit * 80 us + 160 us per request = 5.3 ms )
-            if (hub->sendBit(false)) return; // still converting....
+            noInterrupts();
+            hub->sendBit(false); // still converting....
+            interrupts();
             break; // finished conversion: send 1, is passive ...
 
         default:
+
             hub->raiseSlaveError(cmd);
-    };
-};
+    }
+}
 
 void DS2450::clearMemory(void)
 {
-    memset(memory, static_cast<uint8_t>(0), MEM_SIZE);
+    constexpr uint8_t value_x00 = 0;
+    memset(memory, value_x00, MEM_SIZE);
 
     // set power on defaults
     for (uint8_t adc = 0; adc < POTI_COUNT; ++adc)
@@ -75,8 +82,8 @@ void DS2450::clearMemory(void)
         memory[(1*PAGE_SIZE) + (adc*2) + 1] = 0x8C; // enable POR, Alarm enable high / low
         // alarm settings
         memory[(2*PAGE_SIZE) + (adc*2) + 1] = 0xFF; // high threshold max
-    };
-};
+    }
+}
 
 void DS2450::correctMemory(void)
 {
@@ -94,8 +101,8 @@ void DS2450::correctMemory(void)
         // bit 2:3 -> enable alarm search low, high
         // bit 4:5 -> alarm flag for low, high
         // bit 7 -> power on reset, must be written 0 by master
-    };
-};
+    }
+}
 
 bool DS2450::setPotentiometer(const uint16_t p1, const uint16_t p2, const uint16_t p3, const uint16_t p4)
 {
@@ -104,7 +111,7 @@ bool DS2450::setPotentiometer(const uint16_t p1, const uint16_t p2, const uint16
     setPotentiometer(2, p3);
     setPotentiometer(3, p4);
     return true;
-};
+}
 
 bool DS2450::setPotentiometer(const uint8_t channel, const uint16_t value)
 {
@@ -115,7 +122,7 @@ bool DS2450::setPotentiometer(const uint8_t channel, const uint16_t value)
     memory[(2*channel)+1] = HByte;
     correctMemory();
     return true; // TODO: check with alarm settings p2, and raise alarm, also check when data is written
-};
+}
 
 uint16_t DS2450::getPotentiometer(const uint8_t channel) const
 {

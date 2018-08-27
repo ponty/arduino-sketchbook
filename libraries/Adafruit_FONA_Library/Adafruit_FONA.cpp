@@ -18,7 +18,15 @@
 
 #include "Adafruit_FONA.h"
 
-
+#if defined(ESP8266)
+  // ESP8266 doesn't have the min and max functions natively available like
+  // AVR libc seems to provide.  Include the STL algorithm library to get these.
+  // Unfortunately algorithm isn't available in AVR libc so this is ESP8266
+  // specific (and likely needed for ARM or other platforms, but they lack
+  // software serial and are currently incompatible with the FONA library).
+  #include <algorithm>
+  using namespace std;
+#endif
 
 
 Adafruit_FONA::Adafruit_FONA(int8_t rst)
@@ -57,23 +65,23 @@ boolean Adafruit_FONA::begin(Stream &port) {
     if (sendCheckReply(F("AT"), ok_reply))
       break;
     while (mySerial->available()) mySerial->read();
-    if (sendCheckReply(F("AT"), F("AT"))) 
+    if (sendCheckReply(F("AT"), F("AT")))
       break;
     delay(500);
     timeout-=500;
   }
 
+  if (timeout <= 0) {
 #ifdef ADAFRUIT_FONA_DEBUG
-  if (timeout <= 0) 
     DEBUG_PRINTLN(F("Timeout: No response to AT... last ditch attempt."));
 #endif
-
-  sendCheckReply(F("AT"), ok_reply);
-  delay(100);
-  sendCheckReply(F("AT"), ok_reply);
-  delay(100);
-  sendCheckReply(F("AT"), ok_reply);
-  delay(100);
+    sendCheckReply(F("AT"), ok_reply);
+    delay(100);
+    sendCheckReply(F("AT"), ok_reply);
+    delay(100);
+    sendCheckReply(F("AT"), ok_reply);
+    delay(100);
+  }
 
   // turn off Echo!
   sendCheckReply(F("ATE0"), ok_reply);
@@ -128,7 +136,7 @@ boolean Adafruit_FONA::begin(Stream &port) {
   }
 
 #if defined(FONA_PREF_SMS_STORAGE)
-  sendCheckReply(F("AT+CPMS=\"" FONA_PREF_SMS_STORAGE "\""), ok_reply);
+    sendCheckReply(F("AT+CPMS=" FONA_PREF_SMS_STORAGE "," FONA_PREF_SMS_STORAGE "," FONA_PREF_SMS_STORAGE), ok_reply);
 #endif
 
   return true;
@@ -369,7 +377,7 @@ boolean Adafruit_FONA::setPWM(uint16_t period, uint8_t duty) {
 /********* CALL PHONES **************************************************/
 boolean Adafruit_FONA::callPhone(char *number) {
   char sendbuff[35] = "ATD";
-  strncpy(sendbuff+3, number, min(30, strlen(number)));
+  strncpy(sendbuff+3, number, min(30, (int)strlen(number)));
   uint8_t x = strlen(sendbuff);
   sendbuff[x] = ';';
   sendbuff[x+1] = 0;
@@ -382,7 +390,7 @@ boolean Adafruit_FONA::callPhone(char *number) {
 uint8_t Adafruit_FONA::getCallStatus(void) {
   uint16_t phoneStatus;
 
-  if (! sendParseReply(F("AT+CPAS"), F("+CPAS: "), &phoneStatus)) 
+  if (! sendParseReply(F("AT+CPAS"), F("+CPAS: "), &phoneStatus))
     return FONA_CALL_FAILED; // 1, since 0 is actually a known, good reply
 
   return phoneStatus;  // 0 ready, 2 unkown, 3 ringing, 4 call in progress
@@ -471,9 +479,11 @@ int8_t Adafruit_FONA::getNumSMS(void) {
   if (! sendCheckReply(F("AT+CMGF=1"), ok_reply)) return -1;
 
   // ask how many sms are stored
-  if (sendParseReply(F("AT+CPMS?"), F("\"SM\","), &numsms)) 
+  if (sendParseReply(F("AT+CPMS?"), F(FONA_PREF_SMS_STORAGE ","), &numsms))
     return numsms;
-  if (sendParseReply(F("AT+CPMS?"), F("\"SM_P\","), &numsms)) 
+  if (sendParseReply(F("AT+CPMS?"), F("\"SM\","), &numsms))
+    return numsms;
+  if (sendParseReply(F("AT+CPMS?"), F("\"SM_P\","), &numsms))
     return numsms;
   return -1;
 }
@@ -507,7 +517,7 @@ boolean Adafruit_FONA::readSMS(uint8_t i, char *smsbuff,
 
   DEBUG_PRINTLN(replybuffer);
 
-  
+
   if (! parseReply(F("+CMGR:"), &thesmslen, ',', 11)) {
     *readlen = 0;
     return false;
@@ -517,7 +527,7 @@ boolean Adafruit_FONA::readSMS(uint8_t i, char *smsbuff,
 
   flushInput();
 
-  uint16_t thelen = min(maxlen, strlen(replybuffer));
+  uint16_t thelen = min(maxlen, (uint16_t)strlen(replybuffer));
   strncpy(smsbuff, replybuffer, thelen);
   smsbuff[thelen] = 0; // end the string
 
@@ -560,7 +570,7 @@ boolean Adafruit_FONA::getSMSSender(uint8_t i, char *sender, int senderlen) {
 }
 
 boolean Adafruit_FONA::sendSMS(char *smsaddr, char *smsmsg) {
-  if (! sendCheckReply(F("AT+CMGF=1"), ok_reply)) return -1;
+  if (! sendCheckReply(F("AT+CMGF=1"), ok_reply)) return false;
 
   char sendcmd[30] = "AT+CMGS=\"";
   strncpy(sendcmd+9, smsaddr, 30-9-2);  // 9 bytes beginning, 2 bytes for close quote + null
@@ -600,7 +610,7 @@ boolean Adafruit_FONA::sendSMS(char *smsaddr, char *smsmsg) {
 
 
 boolean Adafruit_FONA::deleteSMS(uint8_t i) {
-    if (! sendCheckReply(F("AT+CMGF=1"), ok_reply)) return -1;
+    if (! sendCheckReply(F("AT+CMGF=1"), ok_reply)) return false;
   // read an sms
   char sendbuff[12] = "AT+CMGD=000";
   sendbuff[8] = (i / 100) + '0';
@@ -615,7 +625,7 @@ boolean Adafruit_FONA::deleteSMS(uint8_t i) {
 /********* USSD *********************************************************/
 
 boolean Adafruit_FONA::sendUSSD(char *ussdmsg, char *ussdbuff, uint16_t maxlen, uint16_t *readlen) {
-  if (! sendCheckReply(F("AT+CUSD=1"), ok_reply)) return -1;
+  if (! sendCheckReply(F("AT+CUSD=1"), ok_reply)) return false;
 
   char sendcmd[30] = "AT+CUSD=1,\"";
   strncpy(sendcmd+11, ussdmsg, 30-11-2);  // 11 bytes beginning, 2 bytes for close quote + null
@@ -705,7 +715,7 @@ boolean Adafruit_FONA::getTime(char *buff, uint16_t maxlen) {
     return false;
 
   char *p = replybuffer+7;
-  uint16_t lentocopy = min(maxlen-1, strlen(p));
+  uint16_t lentocopy = min(maxlen-1, (int)strlen(p));
   strncpy(buff, p, lentocopy+1);
   buff[lentocopy] = 0;
 
@@ -778,12 +788,15 @@ int8_t Adafruit_FONA::GPSstatus(void) {
     getReply(F("AT+CGNSINF"));
     char *p = prog_char_strstr(replybuffer, (prog_char*)F("+CGNSINF: "));
     if (p == 0) return -1;
-    p+=12; // Skip to second value, fix status.
+    p+=10;
     readline(); // eat 'OK'
+    if (p[0] == '0') return 0; // GPS is not even on!
+
+    p+=2; // Skip to second value, fix status.
     //DEBUG_PRINTLN(p);
     // Assume if the fix status is '1' then we have a 3D fix, otherwise no fix.
     if (p[0] == '1') return 3;
-    else return 0;
+    else return 1;
   }
   if (_type == FONA3G_A || _type == FONA3G_E) {
     // FONA 3G doesn't have an explicit 2D/3D fix status.
@@ -830,7 +843,7 @@ uint8_t Adafruit_FONA::getGPS(uint8_t arg, char *buffer, uint8_t maxbuff) {
 
   p+=6;
 
-  uint8_t len = max(maxbuff-1, strlen(p));
+  uint8_t len = max(maxbuff-1, (int)strlen(p));
   strncpy(buffer, p, len);
   buffer[len] = 0;
 
@@ -1162,20 +1175,20 @@ boolean Adafruit_FONA::enableGPRS(boolean onoff) {
       mySerial->println("\"");
 
       DEBUG_PRINT(F("\t---> ")); DEBUG_PRINT(F("AT+CSTT=\""));
-      DEBUG_PRINT(apn); 
-      
+      DEBUG_PRINT(apn);
+
       if (apnusername) {
 	DEBUG_PRINT("\",\"");
-	DEBUG_PRINT(apnusername); 
+	DEBUG_PRINT(apnusername);
       }
       if (apnpassword) {
 	DEBUG_PRINT("\",\"");
-	DEBUG_PRINT(apnpassword); 
+	DEBUG_PRINT(apnpassword);
       }
       DEBUG_PRINTLN("\"");
-      
+
       if (! expectReply(ok_reply)) return false;
-    
+
       // set username/password
       if (apnusername) {
         // Send command AT+SAPBR=3,1,"USER","<user>" where <user> is the configured APN username.
@@ -1297,7 +1310,7 @@ boolean Adafruit_FONA::getGSMLoc(uint16_t *errorcode, char *buff, uint16_t maxle
     return false;
 
   char *p = replybuffer+14;
-  uint16_t lentocopy = min(maxlen-1, strlen(p));
+  uint16_t lentocopy = min(maxlen-1, (int)strlen(p));
   strncpy(buff, p, lentocopy+1);
 
   readline(); // eat OK

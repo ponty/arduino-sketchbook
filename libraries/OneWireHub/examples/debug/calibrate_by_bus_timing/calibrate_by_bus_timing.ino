@@ -1,6 +1,9 @@
 /*
  *    Test-Code for calibration - this sketch determines the value for "instructions per loop" for your µC/CPU-architecture
  *
+ *      setup: upload sketch to controller and hook it up to a OW-master, it will calibrate itself to the "seen" reset-pulses
+ *      NOTE: you will need a serial-port to make this work
+ *
  *      --> read value per serial-com and write it to /src/platform.h to YOUR specific architecture
  *          >>>>  constexpr uint8_t VALUE_IPL {0}; // instructions per loop
  *
@@ -15,7 +18,7 @@
 #include "OneWireHub.h"
 #include "DS18B20.h"  // Digital Thermometer, 12bit
 
-constexpr uint8_t pin_led       { 13 };
+constexpr uint8_t pin_led_dbg   { 13 };
 constexpr uint8_t pin_onewire   { 8 };
 
 auto hub     = OneWireHub(pin_onewire); // do an bus-timing-calibration on first sensor-attachment
@@ -35,15 +38,15 @@ void setup()
 
     hub.attach(ds18b20);
 
-    pinMode(pin_led, OUTPUT);
-    digitalWrite(pin_led,HIGH);
-};
+    pinMode(pin_led_dbg, OUTPUT);
+    digitalWrite(pin_led_dbg,HIGH);
+}
 
 void loop()
 {
-    digitalWrite(pin_led,HIGH);
+    digitalWrite(pin_led_dbg,HIGH);
     const timeOW_t value_ipl = hub.waitLoopsCalibrate();
-    digitalWrite(pin_led,LOW);
+    digitalWrite(pin_led_dbg,LOW);
 
     Serial.print(value_ipl);
     Serial.println("\t instructions per loop");
@@ -54,14 +57,14 @@ void loop()
 
 
     // advanced calibration loop --> try to track and measure it with a logic analyzer
-    if (0)
+    if (false)
     {
-        io_reg_t debug_bitMask = PIN_TO_BITMASK(GPIO_DEBUG_PIN);
-        volatile io_reg_t *debug_baseReg = PIN_TO_BASEREG(GPIO_DEBUG_PIN);
-        pinMode(GPIO_DEBUG_PIN, OUTPUT);
+        io_reg_t debug_bitMask = PIN_TO_BITMASK(pin_led_dbg);
+        volatile io_reg_t *debug_baseReg = PIN_TO_BASEREG(pin_led_dbg);
+        pinMode(pin_led_dbg, OUTPUT);
         DIRECT_WRITE_LOW(debug_baseReg, debug_bitMask);
 
-        constexpr timeOW_t loops_1ms = timeUsToLoops(uint16_t(VALUE1k));
+        const timeOW_t loops_1ms = timeUsToLoops(uint16_t(VALUE1k));
         timeOW_t loops_left = 1;
         while (loops_left)
         {
@@ -78,7 +81,7 @@ void loop()
             loops_left = retries;
 
             DIRECT_WRITE_LOW(debug_baseReg, debug_bitMask);
-        };
+        }
 
         loops_left = 1;
         while (loops_left)
@@ -96,7 +99,7 @@ void loop()
 
             DIRECT_WRITE_HIGH(debug_baseReg, debug_bitMask); // Fast high low flank
             DIRECT_WRITE_LOW(debug_baseReg, debug_bitMask);
-        };
+        }
     }
 }
 

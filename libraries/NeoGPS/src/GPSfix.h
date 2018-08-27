@@ -1,23 +1,22 @@
 #ifndef GPSFIX_H
 #define GPSFIX_H
 
-/**
- * @file GPSfix.h
- * @version 3.0
- *
- * @section License
- * Copyright (C) 2016, SlashDevin
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- */
+//  Copyright (C) 2014-2017, SlashDevin
+//
+//  This file is part of NeoGPS
+//
+//  NeoGPS is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  NeoGPS is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with NeoGPS.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "NeoGPS_cfg.h"
 #include "GPSfix_cfg.h"
@@ -37,13 +36,13 @@
 /**
  * A structure for holding a GPS fix: time, position, velocity, etc.
  *
- * Because GPS devices report various subsets of a coherent fix, 
- * this class tracks which members of the fix are being reported: 
- * each part has its own validity flag. Also, operator |= implements 
+ * Because GPS devices report various subsets of a coherent fix,
+ * this class tracks which members of the fix are being reported:
+ * each part has its own validity flag. Also, operator |= implements
  * merging multiple reports into one consolidated report.
  *
  * @section Limitations
- * Reports are not really fused with an algorithm; if present in 
+ * Reports are not really fused with an algorithm; if present in
  * the source, they are simply replaced in the destination.
  *
  */
@@ -56,7 +55,7 @@ public:
   gps_fix() { init(); };
 
   //------------------------------------------------------------------
-  // 'whole_frac' is a utility structure that holds the two parts 
+  // 'whole_frac' is a utility structure that holds the two parts
   //    of a floating-point number.
   //
   // This is used for Altitude, Heading and Speed, which require more
@@ -71,7 +70,7 @@ public:
   //   the whole part was stored as integer meters, and the fractional part
   //   was stored as integer centimeters.
   //
-  // Unless you want the speed and precision of the two integer parts, you 
+  // Unless you want the speed and precision of the two integer parts, you
   //   shouldn't have to use 'whole_frac'.  Instead, use the
   //   accessor functions for each of the specific fields for
   //   Altitude, Heading and Speed.
@@ -117,14 +116,36 @@ public:
 
   #ifdef GPS_FIX_LOCATION_DMS
     DMS_t latitudeDMS;
-    DMS_t longitudeDMS;    
+    DMS_t longitudeDMS;
   #endif
-  
+
   #ifdef GPS_FIX_ALTITUDE
     whole_frac    alt; // .01 meters
 
     int32_t altitude_cm() const { return alt.int32_00(); };
     float   altitude   () const { return alt.float_00(); };
+    float   altitude_ft() const { return altitude() * 3.28084; };
+  #endif
+
+  #ifdef GPS_FIX_VELNED
+    int32_t  velocity_north;    // cm/s
+    int32_t  velocity_east;     // cm/s
+    int32_t  velocity_down;     // cm/s
+
+    void calculateNorthAndEastVelocityFromSpeedAndHeading()
+    {
+      #if defined( GPS_FIX_HEADING ) && defined( GPS_FIX_SPEED )
+        if (valid.heading && valid.speed && valid.velned) {
+
+          float course         = heading() * NeoGPS::Location_t::RAD_PER_DEG;
+          float speed_cm_per_s = speed_metersph() * (100.0 / 3600.0);
+          velocity_north = round( speed_cm_per_s * cos( course ) );
+          velocity_east  = round( speed_cm_per_s * sin( course ) );
+          // velocity_down has already been set.
+
+        }
+      #endif
+    }
   #endif
 
   #ifdef GPS_FIX_SPEED
@@ -137,7 +158,7 @@ public:
     CONST_CLASS_DATA float KM_PER_NMI = 1.852;
     float    speed_kph () const { return speed() * KM_PER_NMI; };
 
-    CONST_CLASS_DATA uint16_t M_PER_NMI = 1852;
+    CONST_CLASS_DATA uint32_t M_PER_NMI = 1852;
     uint32_t speed_metersph() const { return (spd.whole * M_PER_NMI) + (spd.frac * M_PER_NMI)/1000; };
 
     CONST_CLASS_DATA float MI_PER_NMI = 1.150779;
@@ -153,39 +174,54 @@ public:
 
   //--------------------------------------------------------
   // Dilution of Precision is a measure of the current satellite
-  // constellation geometry WRT how 'good' it is for determining a 
-  // position.  This is _independent_ of signal strength and many 
+  // constellation geometry WRT how 'good' it is for determining a
+  // position.  This is _independent_ of signal strength and many
   // other factors that may be internal to the receiver.
   // It _cannot_ be used to determine position accuracy in meters.
-  // Instead, use the LAT/LON/ALT error in cm members, which are 
+  // Instead, use the LAT/LON/ALT error in cm members, which are
   //   populated by GST sentences.
 
   #ifdef GPS_FIX_HDOP
     uint16_t           hdop; // Horizontal Dilution of Precision x 1000
   #endif
   #ifdef GPS_FIX_VDOP
-    uint16_t           vdop; // Horizontal Dilution of Precision x 1000
+    uint16_t           vdop; // Vertical Dilution of Precision x 1000
   #endif
   #ifdef GPS_FIX_PDOP
-    uint16_t           pdop; // Horizontal Dilution of Precision x 1000
+    uint16_t           pdop; // Position Dilution of Precision x 1000
   #endif
 
   //--------------------------------------------------------
-  //  Error estimates for latitude, longitude and altitude, in centimeters.
+  //  Error estimates for lat, lon, altitude, speed, heading and time
 
   #ifdef GPS_FIX_LAT_ERR
     uint16_t lat_err_cm;
-    float lat_err() const { return lat_err_cm / 100.0; }
+    float lat_err() const { return lat_err_cm / 100.0; }    // m
   #endif
 
   #ifdef GPS_FIX_LON_ERR
     uint16_t lon_err_cm;
-    float lon_err() const { return lon_err_cm / 100.0; }
+    float lon_err() const { return lon_err_cm / 100.0; }    // m
   #endif
 
   #ifdef GPS_FIX_ALT_ERR
     uint16_t alt_err_cm;
-    float alt_err() const { return alt_err_cm / 100.0; }
+    float alt_err() const { return alt_err_cm / 100.0; }    // m
+  #endif
+
+  #ifdef GPS_FIX_SPD_ERR
+    uint16_t spd_err_mmps;
+    float spd_err() const { return spd_err_mmps / 1000.0; } // m/s
+  #endif
+
+  #ifdef GPS_FIX_HDG_ERR
+    uint16_t hdg_errE5;    // 0.00001 deg
+    float hdg_err() const { return hdg_errE5 / 1.0e5; } // deg
+  #endif
+
+  #ifdef GPS_FIX_TIME_ERR
+    uint16_t time_err_ns;
+    float time_err() const { return time_err_ns / 1.0e9; } // s
   #endif
 
   //--------------------------------------------------------
@@ -207,26 +243,35 @@ public:
   //  Date and Time for the fix
   #if defined(GPS_FIX_DATE) | defined(GPS_FIX_TIME)
     NeoGPS::time_t  dateTime   ; // Date and Time in one structure
-    uint8_t         dateTime_cs; // hundredths of a second
+  #endif
+  #if defined(GPS_FIX_TIME)
+    uint8_t         dateTime_cs;         // The fix's UTC hundredths of a second
+    uint32_t        dateTime_us() const  // The fix's UTC microseconds
+                      { return dateTime_cs * 10000UL; };
+    uint16_t        dateTime_ms() const  // The fix's UTC millseconds
+                      { return dateTime_cs * 10; };
   #endif
 
   //--------------------------------------------------------
   // The current fix status or mode of the GPS device.
   //
-  // Unfortunately, the NMEA sentences are a little inconsistent 
-  //   in their use of "status" and "mode". Both fields are mapped 
-  //   onto this enumerated type.  Be aware that different 
-  //   manufacturers interpret them differently.  This can cause 
+  // Unfortunately, the NMEA sentences are a little inconsistent
+  //   in their use of "status" and "mode". Both fields are mapped
+  //   onto this enumerated type.  Be aware that different
+  //   manufacturers interpret them differently.  This can cause
   //   problems in sentences which include both types (e.g., GPGLL).
   //
   // Note: Sorted by increasing accuracy.  See also /operator |=/.
-   
+
   enum status_t {
     STATUS_NONE,
     STATUS_EST,
     STATUS_TIME_ONLY,
     STATUS_STD,
-    STATUS_DGPS
+    STATUS_DGPS,
+    STATUS_RTK_FLOAT,
+    STATUS_RTK_FIXED,
+    STATUS_PPS // Precise Position System, *NOT* Pulse-per-second
   };
 
   status_t  status NEOGPS_BF(8);
@@ -262,6 +307,10 @@ public:
       bool speed NEOGPS_BF(1);
     #endif
 
+    #ifdef GPS_FIX_VELNED
+      bool velned NEOGPS_BF(1);
+    #endif
+
     #ifdef GPS_FIX_HEADING
       bool heading NEOGPS_BF(1);
     #endif
@@ -290,6 +339,18 @@ public:
 
     #ifdef GPS_FIX_ALT_ERR
       bool alt_err NEOGPS_BF(1);
+    #endif
+
+    #ifdef GPS_FIX_SPD_ERR
+      bool spd_err NEOGPS_BF(1);
+    #endif
+
+    #ifdef GPS_FIX_HDG_ERR
+      bool hdg_err NEOGPS_BF(1);
+    #endif
+
+    #ifdef GPS_FIX_TIME_ERR
+      bool time_err NEOGPS_BF(1);
     #endif
 
     #ifdef GPS_FIX_GEOID_HEIGHT
@@ -337,6 +398,12 @@ public:
       spd.init();
     #endif
 
+    #ifdef GPS_FIX_VELNED
+      velocity_north =
+      velocity_east  =
+      velocity_down  = 0;
+    #endif
+
     #ifdef GPS_FIX_HEADING
       hdg.init();
     #endif
@@ -360,6 +427,15 @@ public:
     #ifdef GPS_FIX_ALT_ERR
       alt_err_cm = 0;
     #endif
+    #ifdef GPS_FIX_SPD_ERR
+      spd_err_mmps = 0;
+    #endif
+    #ifdef GPS_FIX_HDG_ERR
+      hdg_errE5 = 0;
+    #endif
+    #ifdef GPS_FIX_TIME_ERR
+      time_err_ns = 0;
+    #endif
 
     #ifdef GPS_FIX_GEOID_HEIGHT
       geoidHt.init();
@@ -379,11 +455,11 @@ public:
     status = STATUS_NONE;
 
     valid.init();
-  
+
   } // init
 
   //-------------------------------------------------------------
-  // Merge valid fields from the right fix into a "fused" fix 
+  // Merge valid fields from the right fix into a "fused" fix
   //   on the left (i.e., /this/).
   //
   // Usage:  gps_fix left, right;
@@ -440,6 +516,14 @@ public:
         spd = r.spd;
     #endif
 
+    #ifdef GPS_FIX_VELNED
+      if (r.valid.velned) {
+        velocity_north = r.velocity_north;
+        velocity_east  = r.velocity_east;
+        velocity_down  = r.velocity_down;
+      }
+    #endif
+
     #ifdef GPS_FIX_SATELLITES
       if (r.valid.satellites)
         satellites = r.satellites;
@@ -473,6 +557,21 @@ public:
     #ifdef GPS_FIX_ALT_ERR
       if (r.valid.alt_err)
         alt_err_cm = r.alt_err_cm;
+    #endif
+
+    #ifdef GPS_FIX_SPD_ERR
+      if (r.valid.spd_err)
+        spd_err_mmps = r.spd_err_mmps;
+    #endif
+
+    #ifdef GPS_FIX_HDG_ERR
+      if (r.valid.hdg_err)
+        hdg_errE5 = r.hdg_errE5;
+    #endif
+
+    #ifdef GPS_FIX_TIME_ERR
+      if (r.valid.time_err)
+        time_err_ns = r.time_err_ns;
     #endif
 
     #ifdef GPS_FIX_GEOID_HEIGHT

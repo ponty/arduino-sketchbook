@@ -6,7 +6,7 @@ requiring as few as _**10 bytes of RAM**_, **866 bytes of PROGMEM**, and **less 
 
 It supports the following protocols and messages:
 
-####NMEA 0183
+#### NMEA 0183
 * GPGGA - System fix data
 * GPGLL - Geographic Latitude and Longitude
 * GPGSA - DOP and active satellites
@@ -22,19 +22,20 @@ The "GP" prefix usually indicates an original [GPS](https://en.wikipedia.org/wik
   * "GA" ([Galileo](https://en.wikipedia.org/wiki/Satellite_navigation#Galileo)), and
   * "GN" (mixed)
 
-This means that GLRMC, GBRMC or BDRMC, GARMC and GNRMC from the latest GPS devices will also be correctly parsed.  See discussion of Talker IDs in [Configurations](extras/doc/Configurations.md#enabledisable-the-talker-id-and-manufacturer-id-processing).
+This means that GLRMC, GBRMC or BDRMC, GARMC and GNRMC from the latest GPS devices (e.g., ublox M8N) will also be correctly parsed.  See discussion of Talker IDs in [Configurations](extras/doc/Configurations.md#enabledisable-the-talker-id-and-manufacturer-id-processing).
 
-Most applications can be fully implemented with the standard NMEA messages above.  They are supported by almost all GPS manufacturers.  Additional messages can be added through derived classes.
+Most applications can be fully implemented with the standard NMEA messages above.  They are supported by almost all GPS manufacturers.  Additional messages can be added through derived classes (see ublox and Garmin sections below).
 
 Most applications will use this simple, familiar loop structure:
 ```
-gps_fix myFix;
+NMEAGPS gps;
+gps_fix fix;
 
 void loop()
 {
   while (gps.available( gps_port )) {
-    myFix = gps.read();
-    doSomeWork( myFix);
+    fix = gps.read();
+    doSomeWork( fix );
   }
 }
 ```
@@ -54,7 +55,7 @@ In an attempt to be reusable in a variety of different programming styles, this 
 * configurable message sets, including hooks for implementing proprietary NMEA messages
 * configurable message fields
 * multiple protocols from same device
-* any kind of input stream (Serial, SoftwareSerial, PROGMEM arrays, etc.)
+* any kind of input stream (Serial, [NeoSWSerial](https://github.com/SlashDevin/NeoSWSerial), I2C, PROGMEM arrays, etc.)
 
 Inconceivable!
 =============
@@ -63,8 +64,9 @@ Don't believe it?  Check out these detailed sections:
 
 Section  |  Description
 -------- |  ------------
-[Installing] (extras/doc/Installing.md) | Copying files
-[Data Model](extras/doc/Data Model.md) | How to parse and use GPS data
+[License](LICENSE) | The Fine Print
+[Installing](extras/doc/Installing.md) | Copying files
+[Data Model](extras/doc/Data%20Model.md) | How to parse and use GPS data
 [Configurations](extras/doc/Configurations.md) | Tailoring NeoGPS to your needs
 [Performance](extras/doc/Performance.md) | 37% to 72% faster!  Really!
 [RAM requirements](extras/doc/RAM.md) | Doing it without buffers!
@@ -73,5 +75,6 @@ Section  |  Description
 [Troubleshooting](extras/doc/Troubleshooting.md) | Troubleshooting
 [Extending NeoGPS](extras/doc/Extending.md) | Using specific devices
 [ublox](extras/doc/ublox.md) | ublox-specific code
+[Garmin](extras/doc/Garmin.md) | Garmin-specific code
 [Tradeoffs](extras/doc/Tradeoffs.md) | Comparing to other libraries
 [Acknowledgements](extras/doc/Acknowledgements.md) | Thanks!

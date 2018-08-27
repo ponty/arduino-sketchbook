@@ -1,20 +1,19 @@
-//------------------------------------------------------
-// @file DMS.cpp
-// @version 1.0
+//  Copyright (C) 2014-2017, SlashDevin
 //
-// @section License
-// Copyright (C) 2016, SlashDevin
+//  This file is part of NeoGPS
 //
-// This library is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 2.1 of the License, or (at your option) any later version.
+//  NeoGPS is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
 //
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// Lesser General Public License for more details.
+//  NeoGPS is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
 //
+//  You should have received a copy of the GNU General Public License
+//  along with NeoGPS.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "DMS.h"
 
@@ -91,3 +90,32 @@ Print & operator << ( Print & outs, const DMS_t & dms )
   return outs;
   
 } // operator <<
+
+//----------------------------------------------------------------
+
+void DMS_t::printDDDMMmmmm( Print & outs ) const
+{
+  outs.print( degrees );
+
+  if (minutes < 10)
+    outs.print( '0' );
+  outs.print( minutes );
+  outs.print( '.' );
+
+  //  Calculate the fractional minutes from the seconds,
+  //     *without* using floating-point numbers.
+
+  uint16_t mmmm = seconds_whole * 166;  // same as 10000/60, less .66666...
+  mmmm += (seconds_whole * 2 + seconds_frac/2 ) / 3;  // ... plus the remaining .66666
+      // ... plus the seconds_frac, scaled by 10000/(60*1000) = 1/6, which
+      //        is implemented above as 1/2 * 1/3 
+
+  //  print leading zeroes, if necessary
+  if (mmmm < 1000)
+    outs.print( '0' );
+  if (mmmm <  100)
+    outs.print( '0' );
+  if (mmmm <   10)
+    outs.print( '0' );
+  outs.print( mmmm );
+}
