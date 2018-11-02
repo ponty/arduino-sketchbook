@@ -6,9 +6,9 @@ const char alarm_song_P[] PROGMEM =
 const char start_song_P[] PROGMEM ="Indiana:d=4,o=5,b=250:e,8p,8f,8g,8p,1c6";
 
 // sleep time after alarming
-const int wait = 20; //sec
+const int WAIT_SEC = 20; //sec
 
-const int period_resolution = 20;
+const int PERIOD_MS = 20; // 20 ms -> 50 Hz
 
 // set it for lower power consumption
 #define USE_NARCOLEPTIC 1

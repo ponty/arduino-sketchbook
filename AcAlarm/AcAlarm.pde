@@ -59,7 +59,7 @@ bool is_period_on()
 {
     bool on = false;
 
-    for (int i = 0; i < period_resolution; i++)
+    for (int i = 0; i < PERIOD_MS; i++)
     {
         bool current = digitalRead(pin_input);
         if (g_debug)
@@ -67,7 +67,7 @@ bool is_period_on()
             digitalWrite(pin_debug_led, current);
         }
         on |= current;
-        delay(1);
+        delay(1); // 1 ms
     }
 
     return on;
@@ -97,7 +97,7 @@ void loop(void)
         if (!g_debug)
         {
             player.play_P(alarm_song_P, octave);
-            for (int i = 0; i < wait; i++)
+            for (int i = 0; i < WAIT_SEC; i++)
             {
                 delay(1000);
 //                if (!is_on())
