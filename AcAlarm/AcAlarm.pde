@@ -75,17 +75,19 @@ bool is_period_on()
 
 bool is_on()
 {
-    bool on = true;
     for (int i = 0; i < 3; i++)
     {
-        on &= is_period_on();
+        if(!is_period_on())
+        {
+            return false;
+        }
         if (!g_debug)
         {
             delay(500);
         }
     }
 
-    return on;
+    return true;
 }
 
 void loop(void)
