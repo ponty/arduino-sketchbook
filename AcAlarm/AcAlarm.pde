@@ -59,7 +59,7 @@ void setup(void)
 
 void led_debug_mode_x(bool on, int mode)
 {
-    if (g_debug && (LED_DEBUG_MODE==mode))
+    if (g_debug && (LED_DEBUG_MODE == mode))
     {
         digitalWrite(pin_debug_led, on);
     }
@@ -97,7 +97,7 @@ bool is_on()
 {
     for (int i = 0; i < 20; i++)
     {
-        if(!is_period_on())
+        if (!is_period_on())
         {
             led_debug_mode_2(false);
             return false;
