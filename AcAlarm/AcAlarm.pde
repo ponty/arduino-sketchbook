@@ -124,10 +124,12 @@ void loop(void)
             for (int i = 0; i < WAIT_SEC; i++)
             {
                 ndelay(1000);
-//                if (!is_on())
-//                {
-//                    break;
-//                }
+
+                read_debug();
+                if (g_debug)
+                {
+                    break;
+                }
             }
         }
     }
