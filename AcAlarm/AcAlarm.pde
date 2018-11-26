@@ -7,7 +7,9 @@
 
 #if USE_NARCOLEPTIC > 0
 #include <Narcoleptic.h>
-#define delay  Narcoleptic.delay
+#define ndelay  Narcoleptic.delay
+#else
+#define ndelay  delay
 #endif
 
 bool g_debug = 0;
@@ -121,7 +123,7 @@ void loop(void)
             player.play_P(alarm_song_P, octave);
             for (int i = 0; i < WAIT_SEC; i++)
             {
-                delay(1000);
+                ndelay(1000);
 //                if (!is_on())
 //                {
 //                    break;
