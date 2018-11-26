@@ -55,6 +55,26 @@ void setup(void)
     player.play_P(start_song_P, octave);
 }
 
+void led_debug_mode_x(bool on, int mode)
+{
+    if (g_debug && (LED_DEBUG_MODE==mode))
+    {
+        digitalWrite(pin_debug_led, on);
+    }
+}
+void led_debug_mode_0(bool on)
+{
+    led_debug_mode_x(on, 0);
+}
+void led_debug_mode_1(bool on)
+{
+    led_debug_mode_x(on, 1);
+}
+void led_debug_mode_2(bool on)
+{
+    led_debug_mode_x(on, 2);
+}
+
 bool is_period_on()
 {
     bool on = false;
@@ -62,14 +82,12 @@ bool is_period_on()
     for (int i = 0; i < PERIOD_MS; i++)
     {
         bool current = digitalRead(pin_input);
-        if (g_debug)
-        {
-            digitalWrite(pin_debug_led, current);
-        }
+        led_debug_mode_0(current);
         on |= current;
         delay(1); // 1 ms
     }
 
+    led_debug_mode_1(on);
     return on;
 }
 
@@ -79,6 +97,7 @@ bool is_on()
     {
         if(!is_period_on())
         {
+            led_debug_mode_2(false);
             return false;
         }
         if (!g_debug)
@@ -87,6 +106,7 @@ bool is_on()
         }
     }
 
+    led_debug_mode_2(true);
     return true;
 }
 

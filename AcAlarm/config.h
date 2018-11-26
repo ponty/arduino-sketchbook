@@ -12,3 +12,9 @@ const int PERIOD_MS = 20; // 20 ms -> 50 Hz
 
 // set it for lower power consumption
 #define USE_NARCOLEPTIC 1
+
+
+// 0 direct signal
+// 1  periodic on
+// 2  start alarm
+#define LED_DEBUG_MODE 2
