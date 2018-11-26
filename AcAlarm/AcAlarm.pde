@@ -95,7 +95,7 @@ bool is_period_on()
 
 bool is_on()
 {
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 20; i++)
     {
         if(!is_period_on())
         {
@@ -104,7 +104,7 @@ bool is_on()
         }
         if (!g_debug)
         {
-            delay(500);
+            delay(11);
         }
     }
 
