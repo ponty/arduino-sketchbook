@@ -1,7 +1,7 @@
 #ifndef MICRONMEA_H
 #define MICRONMEA_H
 
-#define MICRONMEA_VERSION "1.0.5"
+#define MICRONMEA_VERSION "2.0.1"
 #include <limits.h>
 
 /*
@@ -121,11 +121,11 @@ public:
 
 	bool process(char c);
 
-	void setBadChecksumHandler(void (*handler)(MicroNMEA& nmea)) {
+	void setBadChecksumHandler(void (*handler)(const MicroNMEA& nmea)) {
 		_badChecksumHandler = handler;
 	}
 
-	void setUnknownSentenceHandler(void (*handler)(MicroNMEA& nmea)) {
+	void setUnknownSentenceHandler(void (*handler)(const MicroNMEA& nmea)) {
 		_unknownSentenceHandler = handler;
 	}
 
@@ -180,8 +180,8 @@ private:
 	uint8_t _numSat;
 	uint8_t _hdop;
 
-	void (*_badChecksumHandler)(MicroNMEA &nmea);
-	void (*_unknownSentenceHandler)(MicroNMEA &nmea);
+	void (*_badChecksumHandler)(const MicroNMEA &nmea);
+	void (*_unknownSentenceHandler)(const MicroNMEA &nmea);
 
 };
 
