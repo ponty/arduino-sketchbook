@@ -58,6 +58,25 @@ char sim_read()
     ;
 }
 
+void sim_read_battery()
+{
+    fonaSS.listen();
+
+    // read the battery voltage
+    if (!fona.getBattPercent(&vbat))
+    {
+        INFLN("Failed to read Batt");
+        wait(10);
+        reboot();
+    }
+    else
+    {
+        INF("VBat = ");
+        INFVAR(vbat);
+        INFLN("");
+    }
+}
+
 void sim_init()
 {
     /////////////////////////////////////////////////////////
@@ -83,6 +102,14 @@ void sim_init()
     }
     INFLN("FONA is OK");
     beep_status(0, false);
+
+    sim_read_battery();
+    if (vbat < 33)
+    {
+        INFLN("battery < 33% -> reboot");
+        wait(10);
+        reboot();
+    }
 
 #ifndef EXT_GPS
     wait(1);
@@ -128,6 +155,7 @@ void sim_init()
     wait(6);
     while (1)
     { //searching
+        int i = 0;
         uint8_t n = fona.getNetworkStatus();
         print_network_status(n);
         if (n != 2)
@@ -135,6 +163,11 @@ void sim_init()
         INFLN("network_status: searching");
         wait(2);
         beep_status(3, true);
+        i++;
+        if (i > 30)
+        {
+            reboot();
+        }
     }
     beep_status(3, false);
 
@@ -145,9 +178,15 @@ void sim_init()
     // turn GPRS on
     while (!fona.enableGPRS(true))
     {
+        int i = 0;
         INFLN("Failed to turn on GPRS");
         wait(2);
         beep_status(4, true);
+        i++;
+        if (i > 30)
+        {
+            reboot();
+        }
     }
     INFLN("GPRS OK");
     beep_status(4, false);
@@ -240,34 +279,34 @@ void sim_read_gsm_pos()
     }
 }
 /*
-boolean getGSMLoc()
-{
-    char gpsbuffer[70];
+ boolean getGSMLoc()
+ {
+ char gpsbuffer[70];
 
-    uint16_t returncode;
+ uint16_t returncode;
 
-    // make sure we could get a response
-    if (!fona.getGSMLoc(&returncode, gpsbuffer, sizeof(gpsbuffer)))
-        return false;
+ // make sure we could get a response
+ if (!fona.getGSMLoc(&returncode, gpsbuffer, sizeof(gpsbuffer)))
+ return false;
 
-    // make sure we have a valid return code
-    if (returncode != 0)
-        return false;
+ // make sure we have a valid return code
+ if (returncode != 0)
+ return false;
 
-    // +CIPGSMLOC: 0,-74.007729,40.730160,2015/10/15,19:24:55
-    // tokenize the gps buffer to locate the lat & long
-    longp = strtok(gpsbuffer, ",");
-    if (!longp)
-        return false;
+ // +CIPGSMLOC: 0,-74.007729,40.730160,2015/10/15,19:24:55
+ // tokenize the gps buffer to locate the lat & long
+ longp = strtok(gpsbuffer, ",");
+ if (!longp)
+ return false;
 
-    latp = strtok(NULL, ",");
-    if (!latp)
-        return false;
+ latp = strtok(NULL, ",");
+ if (!latp)
+ return false;
 
-    return true;
+ return true;
 
-}
-*/
+ }
+ */
 void sim_read_rssi()
 {
     fonaSS.listen();
@@ -279,21 +318,3 @@ void sim_read_rssi()
 
 }
 
-void sim_read_battery()
-{
-    fonaSS.listen();
-
-    // read the battery voltage
-    if (!fona.getBattPercent(&vbat))
-    {
-        INFLN("Failed to read Batt");
-        wait(10);
-        reboot();
-    }
-    else
-    {
-        INF("VBat = ");
-        INFVAR(vbat);
-        INFLN("");
-    }
-}

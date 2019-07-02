@@ -1,5 +1,6 @@
 #pragma once
 
+unsigned long sleep_millis=0;
 
 #define     D0          0
 #define     D1          1
@@ -39,10 +40,12 @@ void reboot()
 
 void wait(int sec)
 {
-    delay(100);
+    delay(10);
     for (int i = 0; i < sec; ++i)
     {
-        delay(1000);
+//        delay(1000);
+        Watchdog.sleep(1000);
+        sleep_millis += 1000;
 //        Narcoleptic.delay(1000);
     }
 }
@@ -62,14 +65,18 @@ public:
     {
         reset();
     }
+    unsigned long all_millis()
+    {
+        return millis()+sleep_millis;
+    }
     void start()
     {
-        start_value = millis();
+        start_value = all_millis();
         run = true;
     }
     void stop()
     {
-        value = millis();
+        value = all_millis();
         run = false;
     }
     void reset()
@@ -81,7 +88,7 @@ public:
     unsigned long read()
     {
         if (run)
-            value = millis();
+            value = all_millis();
 
         return (value - start_value) / 1000;
     }

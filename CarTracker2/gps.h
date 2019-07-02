@@ -87,8 +87,12 @@ void read_gps()
             INFC(c);
             nmea.process(c);
         }
-        if (nmea.getHDOP() < 255 && nmea.getSpeed() != LONG_MIN)
-            break;
+        if (nmea.isValid())
+        {
+            if (nmea.getHDOP() > 0 && nmea.getHDOP() < 255 )
+                if (nmea.getSpeed() != LONG_MIN)
+                    break;
+        }
     }
     INFLN("");
 

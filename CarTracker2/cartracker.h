@@ -32,6 +32,7 @@ int event = 0;
 void setup()
 {
     debug_init();
+    INFLN("");
     INFLN("-------------- CarTracker ------------------------------");
 
     start_beep();

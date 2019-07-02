@@ -4,11 +4,12 @@
 #include <MicroNMEA.h>
 #include <SoftwareSerial.h>
 #include "SoftwareReset.h"
-#include <Narcoleptic.h>
+//#include <Narcoleptic.h>
+#include <Adafruit_SleepyDog.h>
 
-#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+//#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
-#endif
+//#endif
 
 
 #include "cartracker.h"
